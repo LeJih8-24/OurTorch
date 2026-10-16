@@ -21,8 +21,7 @@ jobs:
 
       - name: Push vers le dépôt Epitech
         env:
-          # Remplace par l'URL exacte du dépôt de ton projet actuel (sans https://)
-          TARGET_REPO: "git@github.com:EpitechPGE3-2026/G-CNA-501-STG-5-1-mytorch-2.git"
+          TARGET_REPO: "github.com/EpitechPGE3-2026/G-CNA-501-STG-5-1-mytorch-2.git"
           PAT: ${{ secrets.EPITECH_PAT }}
         run: |
           # Ajout du dépôt distant avec le token d'authentification intégré dans l'URL
