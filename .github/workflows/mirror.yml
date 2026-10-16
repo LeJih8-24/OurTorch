@@ -1,0 +1,33 @@
+name: Epitech Mirror
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+  delete:
+  workflow_dispatch:
+
+jobs:
+  mirroring:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout du repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Push vers le dépôt Epitech
+        env:
+          # Remplace par l'URL exacte du dépôt de ton projet actuel (sans https://)
+          TARGET_REPO: "git@github.com:EpitechPGE3-2026/G-CNA-501-STG-5-1-mytorch-2.git"
+          PAT: ${{ secrets.EPITECH_PAT }}
+        run: |
+          # Ajout du dépôt distant avec le token d'authentification intégré dans l'URL
+          git remote add epitech "https://x-access-token:${PAT}@${TARGET_REPO}"
+          
+          # Push de toutes les branches et de tous les tags (et suppression des branches effacées)
+          git push epitech "refs/remotes/origin/*:refs/heads/*" --force --prune
+          git push epitech --tags --force
