@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Unit test / coverage reports
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Executables
+/my_torch_analyzer
+/my_torch_generator
+
+# IDE / OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
