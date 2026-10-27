@@ -180,7 +180,7 @@ y = np.eye(3, dtype=np.float32)[np.random.randint(0, 3, 1000)]   # one-hot, mêm
 history = model.fit(X, y, epochs=30, batch_size=128, val_split=0.15, patience=5, verbose=True)
 print(history["best_epoch"])
 print(model.evaluate(X, y))      # (loss, accuracy)
-print(model.predict(X[:3]))      # ['Check', 'Nothing', 'Check']
+print(model.predict(X[:3]))      # par ex. ['Nothing', 'Nothing', 'Checkmate']
 ```
 
 En pratique, on construit plutôt le modèle depuis un `.conf` : [05 — Configuration et sauvegarde](05-configuration-et-sauvegarde.md).
