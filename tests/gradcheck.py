@@ -40,6 +40,14 @@ def numerical_gradient(f: Callable[[], float], x: np.ndarray, eps: float = 1e-6)
     return grad
 
 
+def check_loss_gradient(loss, y_pred: np.ndarray, y_true: np.ndarray) -> float:
+    """Relative error between loss.backward() and the numerical dL/dy_pred (float64 inputs)."""
+    loss.forward(y_pred, y_true)
+    analytic = loss.backward()
+    numeric = numerical_gradient(lambda: loss.forward(y_pred, y_true), y_pred)
+    return relative_error(analytic, numeric)
+
+
 def check_layer_gradients(layer: Layer, X: np.ndarray, seed: int = 0) -> List[float]:
     """Return the relative errors for dL/dX followed by every parameter gradient.
 
