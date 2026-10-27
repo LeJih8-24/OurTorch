@@ -22,10 +22,21 @@ The project is split into three main components:
 | Weight initializers & base `Layer` | ✅ Done | #8 |
 | `Linear`, activations (ReLU, LeakyReLU, Sigmoid, Tanh, Softmax), `Dropout` / MC Dropout | ✅ Done | #5 |
 | Losses (MSE, cross-entropy), optimizers (SGD, Adam), `Sequential` model with early stopping | ✅ Done | #4 |
-| `.conf` parser, `.nn` save/load, `my_torch_generator` | ⏳ To do | #3 |
+| Input normalization, `.conf` parser, `.nn` save/load, `my_torch_generator`, basic/medium/full configs | ✅ Done | #3 |
 | FEN parser & feature encoding | ⏳ To do | #2 |
 | `--train` / `--predict` pipelines | ⏳ To do | #1 |
 | Benchmarks, pre-trained networks, docs | ⏳ To do | #6 |
+
+### Building a network from a `.conf` file
+
+```python
+from mytorch import build_from_config
+
+model = build_from_config("configs/medium_network.conf")  # validated, seeded, blank network
+history = model.fit(X, y, **model.training_config)      # epochs, batch_size, val_split, patience from the file
+```
+
+The `.conf` format (JSON) and every validation rule are described in [ARCHITECTURE.md](./ARCHITECTURE.md#mytorchconfigpy--network-configuration-files-conf).
 
 ### Using the `mytorch` library (preview)
 
@@ -67,6 +78,8 @@ This creates two executable scripts in the project root:
 - `./my_torch_analyzer`
 - `./my_torch_generator`
 
+> ⚠️ The executables use `#!/usr/bin/env python3`: **NumPy must be installed for that interpreter** (`pip install numpy`), or the virtual environment must be activated (`source .venv/bin/activate`). Otherwise `my_torch_generator` stops with `Error: Cannot load the mytorch library` and exit code 84.
+
 ### 2. Clean Build Artifacts
 ```bash
 # Remove Python cache files (__pycache__, .pytest_cache, *.pyc)
@@ -82,6 +95,20 @@ make re
 ---
 
 ## Usage
+
+### `my_torch_generator`
+
+Generate blank (untrained) networks from configuration files:
+
+```bash
+./my_torch_generator configs/basic_network.conf 3 configs/full_network.conf 1
+# basic_network_1.nn
+# basic_network_2.nn
+# basic_network_3.nn
+# full_network_1.nn
+```
+
+Files are written in the current directory. With a `seed` in the `.conf`, the networks are all different but the same command always produces the same files. See [ARCHITECTURE.md](./ARCHITECTURE.md#scriptsgeneratorpy--my_torch_generator) for details and the `.nn` file format.
 
 ### `my_torch_analyzer`
 
@@ -136,3 +163,15 @@ Run the unit test suite using `pytest` (or Python's built-in `unittest`):
 ## Documentation Index
 
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)**: Detailed directory structure, module breakdown, mathematical specifications for initializers, and design patterns used across `mytorch` and `analyzer`.
+- **[docs/](./docs/README.md)** *(French)*: complete documentation of every component, for the team and the defense:
+
+  | Chapter | Content |
+  | :--- | :--- |
+  | [01 — Vue d'ensemble](./docs/01-vue-d-ensemble.md) | Problem, components, network life cycle, step-by-step prediction |
+  | [02 — Théorie](./docs/02-theorie.md) | Matrices, activations, softmax, loss, gradient descent, backpropagation, initialization, overfitting |
+  | [03 — Les couches](./docs/03-couches.md) | `Layer` contract, initializers, `Linear`, activations, `Dropout`, `Normalization` |
+  | [04 — Entraînement](./docs/04-entrainement.md) | Losses, optimizers, `Sequential` and `fit()` |
+  | [05 — Configuration et sauvegarde](./docs/05-configuration-et-sauvegarde.md) | `.conf` format, `.nn` format, `my_torch_generator` |
+  | [06 — Analyseur et outils](./docs/06-analyseur-et-outils.md) | `my_torch_analyzer` CLI, error handling, `Makefile` |
+  | [07 — Tests](./docs/07-tests.md) | Test map, gradient check, writing tests |
+  | [08 — Soutenance](./docs/08-soutenance.md) | Likely questions and answers, known limits, demos |

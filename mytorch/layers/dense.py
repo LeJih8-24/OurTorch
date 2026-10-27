@@ -15,6 +15,8 @@ class Linear(Layer):
         Y: (batch, out_features)
     """
 
+    state_keys = ("W", "b")
+
     def __init__(self, in_features: int, out_features: int, init: str = "he") -> None:
         super().__init__()
         if int(in_features) <= 0 or int(out_features) <= 0:
