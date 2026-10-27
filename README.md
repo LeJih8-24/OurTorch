@@ -22,10 +22,22 @@ The project is split into three main components:
 | Weight initializers & base `Layer` | ✅ Done | #8 |
 | `Linear`, activations (ReLU, LeakyReLU, Sigmoid, Tanh, Softmax), `Dropout` / MC Dropout | ✅ Done | #5 |
 | Losses (MSE, cross-entropy), optimizers (SGD, Adam), `Sequential` model with early stopping | ✅ Done | #4 |
-| `.conf` parser, `.nn` save/load, `my_torch_generator` | ⏳ To do | #3 |
+| Input normalization, `.conf` parser & `build_from_config`, basic/medium/full configs | ✅ Done | #3 (part 1) |
+| `.nn` save/load, `my_torch_generator` | ⏳ To do | #3 (part 2) |
 | FEN parser & feature encoding | ⏳ To do | #2 |
 | `--train` / `--predict` pipelines | ⏳ To do | #1 |
 | Benchmarks, pre-trained networks, docs | ⏳ To do | #6 |
+
+### Building a network from a `.conf` file
+
+```python
+from mytorch import build_from_config
+
+model = build_from_config("configs/medium_network.conf")  # validated, seeded, blank network
+history = model.fit(X, y, **model.training_config)      # epochs, batch_size, val_split, patience from the file
+```
+
+The `.conf` format (JSON) and every validation rule are described in [ARCHITECTURE.md](./ARCHITECTURE.md#mytorchconfigpy--network-configuration-files-conf).
 
 ### Using the `mytorch` library (preview)
 
