@@ -25,6 +25,7 @@ OurTorch/
 │   ├── losses.py               # MSELoss, SoftmaxCrossEntropyLoss, get_loss()
 │   ├── optimizers.py           # SGD (momentum), Adam, get_optimizer()
 │   ├── model.py                # `Sequential` model: training loop, early stopping, predict
+│   ├── serialization.py        # .nn files: save_network(), load_network(), read_metadata()
 │   └── layers/                 # Neural network layers package
 │       ├── __init__.py         # Exposes Layer and every concrete layer
 │       ├── base.py             # Abstract base class `Layer`
@@ -40,18 +41,20 @@ OurTorch/
 │   └── utils.py                # Central error handling (`exit_error`)
 │
 ├── scripts/                    # Standalone scripts and tools
-│   └── generator.py            # Entrypoint copied to ./my_torch_generator
+│   └── generator.py            # my_torch_generator: blank .nn networks from .conf files
 │
 └── tests/                      # Unit test suite
     ├── __init__.py             # Test path configuration
     ├── gradcheck.py            # Reusable numerical gradient checker (finite differences)
     ├── test_cli.py             # Unit tests for CLI parsing and exit code 84 rules
     ├── test_config.py          # .conf validation, build_from_config, shipped configs
+    ├── test_generator.py       # my_torch_generator run as the real executable (exit codes, files)
     ├── test_initializers.py    # Unit tests for initializers and base Layer
     ├── test_layers.py          # Gradient checks and behaviour tests for every layer
     ├── test_losses.py          # Loss values, stability and gradient checks
     ├── test_normalization.py   # Normalization layer, state_dict, integration in fit()
     ├── test_optimizers.py      # Update rules, convergence and config factory
+    ├── test_serialization.py   # .nn round trip, corrupted / foreign / truncated files
     └── test_xor.py             # Sequential: XOR acceptance test, early stopping, reproducibility
 ```
 
@@ -305,6 +308,47 @@ A `.conf` file is a **JSON** document describing a blank network. JSON was chose
 
 **Reproducibility note for the pipeline (issue #1)**: `build_from_config` seeds the RNG before initializing the weights. When training a network **loaded** from a file, call `np.random.seed(model.seed)` before `fit()` to get the same shuffling and dropout masks.
 
+#### `mytorch/serialization.py` — network files (`.nn`)
+A `.nn` file contains **everything needed to use or retrain a network**: architecture, classes, training settings, weights and input normalization statistics.
+
+**Format**: a compressed NumPy `.npz` archive (a zip of `.npy` arrays):
+
+| Entry | Content |
+| :--- | :--- |
+| `header` | JSON string `{"format": "mytorch-nn", "version": 1, "metadata": {...}}` |
+| `config` | JSON string = `model.get_config()` (same structure as a `.conf` file) |
+| `layer{i}.{key}` | One array per layer state entry: `layer1.W`, `layer1.b`, `layer0.mean`, `layer0.std`, `layer0.count`… |
+
+**Why this format** (instead of `pickle`, suggested in the issue):
+- **Safe**: loaded with `allow_pickle=False`, a `.nn` file can never execute code, unlike `pickle`.
+- **Robust**: independent of the Python class names and module layout, so refactoring `mytorch` does not break old files.
+- **Inspectable**: `unzip -l net.nn` lists the arrays, the config is readable JSON.
+- **Compact**: weights stay `float32` and the archive is compressed (~1.9 MB for `full_network.conf`).
+- **Versioned**: the header `version` lets us change the format later and reject old/new files with a clear error.
+
+**API**
+- `save_network(model, path, metadata=None)`: writes the file **atomically** (temporary file in the same directory, then rename). If saving fails, an existing file — for instance `LOADFILE` in `--train` mode — is left intact. `metadata` is a free JSON dict (planned use: FEN encoder version and input size, issue #2).
+- `load_network(path) -> Sequential`: rebuilds the network with `build_from_config(config)`, then loads every array with `load_state_dict()`.
+- `read_metadata(path) -> dict`: reads the metadata without building the network.
+
+**Errors** — all raise `ValueError` (→ stderr + exit 84 in the executables): missing/unreadable file, file that is not a zip archive (text, single `.npy`, truncated file), wrong `format` or `version`, missing or invalid `config`, missing / wrongly shaped / non-numeric / unexpected arrays.
+
+**Not saved**: the optimizer state (momentum, Adam moments). Retraining a loaded network starts with a fresh optimizer configured from `config`. This keeps files small; the first steps of a new training simply rebuild the moments.
+
+#### `scripts/generator.py` — `my_torch_generator`
+Creates blank (untrained) networks from `.conf` files **[GEN1]**.
+
+```
+./my_torch_generator config_file_1 nb_1 [config_file_2 nb_2...]
+```
+
+- Writes `<name>_1.nn` … `<name>_<nb>.nn` **in the current directory**, `<name>` being the config file name without extension (`configs/basic_network.conf 3` → `basic_network_1.nn`, `basic_network_2.nn`, `basic_network_3.nn`), and prints each created file name.
+- **Seeds**: if the config has `"seed": s`, network *k* uses seed `s + k - 1` (saved in its config). The networks differ from each other, and running the same command again produces exactly the same files. Without a seed, weights are random.
+- If the same config name appears twice, numbering continues (`a.conf 1 a.conf 1` → `a_1.nn`, `a_2.nn`) instead of overwriting.
+- **All arguments and configurations are validated before any file is written**: an error never leaves half of the networks generated.
+- `--help` prints the usage. Odd number of arguments, `nb` not a positive integer, missing or invalid config, or missing NumPy → message on stderr, exit code **84**.
+- Generated `.nn` files are git-ignored, except `my_torch_network*.nn` (the pre-trained networks that must be pushed).
+
 ---
 
 ## 4. Component Interaction Flow
@@ -319,5 +363,9 @@ flowchart LR
     Engine --> Optim["mytorch/optimizers.py"]
     Conf["configs/*.conf"] --> Config["mytorch/config.py (build_from_config)"]
     Config --> Engine
+    Gen["scripts/generator.py"] --> Config
+    Gen --> Ser["mytorch/serialization.py (.nn)"]
+    Main --> Ser
+    Ser --> Config
     Layers --> Init["mytorch/initializers.py"]
 ```

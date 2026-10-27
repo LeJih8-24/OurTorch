@@ -22,8 +22,7 @@ The project is split into three main components:
 | Weight initializers & base `Layer` | ✅ Done | #8 |
 | `Linear`, activations (ReLU, LeakyReLU, Sigmoid, Tanh, Softmax), `Dropout` / MC Dropout | ✅ Done | #5 |
 | Losses (MSE, cross-entropy), optimizers (SGD, Adam), `Sequential` model with early stopping | ✅ Done | #4 |
-| Input normalization, `.conf` parser & `build_from_config`, basic/medium/full configs | ✅ Done | #3 (part 1) |
-| `.nn` save/load, `my_torch_generator` | ⏳ To do | #3 (part 2) |
+| Input normalization, `.conf` parser, `.nn` save/load, `my_torch_generator`, basic/medium/full configs | ✅ Done | #3 |
 | FEN parser & feature encoding | ⏳ To do | #2 |
 | `--train` / `--predict` pipelines | ⏳ To do | #1 |
 | Benchmarks, pre-trained networks, docs | ⏳ To do | #6 |
@@ -79,6 +78,8 @@ This creates two executable scripts in the project root:
 - `./my_torch_analyzer`
 - `./my_torch_generator`
 
+> ⚠️ The executables use `#!/usr/bin/env python3`: **NumPy must be installed for that interpreter** (`pip install numpy`), or the virtual environment must be activated (`source .venv/bin/activate`). Otherwise `my_torch_generator` stops with `Error: Cannot load the mytorch library` and exit code 84.
+
 ### 2. Clean Build Artifacts
 ```bash
 # Remove Python cache files (__pycache__, .pytest_cache, *.pyc)
@@ -94,6 +95,20 @@ make re
 ---
 
 ## Usage
+
+### `my_torch_generator`
+
+Generate blank (untrained) networks from configuration files:
+
+```bash
+./my_torch_generator configs/basic_network.conf 3 configs/full_network.conf 1
+# basic_network_1.nn
+# basic_network_2.nn
+# basic_network_3.nn
+# full_network_1.nn
+```
+
+Files are written in the current directory. With a `seed` in the `.conf`, the networks are all different but the same command always produces the same files. See [ARCHITECTURE.md](./ARCHITECTURE.md#scriptsgeneratorpy--my_torch_generator) for details and the `.nn` file format.
 
 ### `my_torch_analyzer`
 
