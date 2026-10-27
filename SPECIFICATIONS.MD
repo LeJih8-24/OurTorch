@@ -1,4 +1,3 @@
-
 # Projet MY_TORCH — Analyseur d'échiquier par réseau de neurones
 
 > *A Clash of Kings* — Spécifications v2.6.0
@@ -117,7 +116,7 @@ rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
 En mode entraînement, le label suit la FEN sur la même ligne, ex. :
 
 ```
-rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3 Checkmate White
+rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3 Checkmate Black
 ```
 
 ### Sortie : état de la partie
