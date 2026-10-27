@@ -21,34 +21,36 @@ The project is split into three main components:
 | `my_torch_analyzer` argument parser | ✅ Done | #7 |
 | Weight initializers & base `Layer` | ✅ Done | #8 |
 | `Linear`, activations (ReLU, LeakyReLU, Sigmoid, Tanh, Softmax), `Dropout` / MC Dropout | ✅ Done | #5 |
-| Losses, optimizers (SGD, Adam), `Sequential` model | ⏳ To do | #4 |
+| Losses (MSE, cross-entropy), optimizers (SGD, Adam), `Sequential` model with early stopping | ✅ Done | #4 |
 | `.conf` parser, `.nn` save/load, `my_torch_generator` | ⏳ To do | #3 |
 | FEN parser & feature encoding | ⏳ To do | #2 |
 | `--train` / `--predict` pipelines | ⏳ To do | #1 |
 | Benchmarks, pre-trained networks, docs | ⏳ To do | #6 |
 
-### Using the layers (preview)
+### Using the `mytorch` library (preview)
 
 ```python
 import numpy as np
+from mytorch import Adam, Sequential, SoftmaxCrossEntropyLoss
 from mytorch.layers import Dropout, Linear, ReLU
 
-np.random.seed(42)                      # reproducible weights and dropout masks
-layers = [Linear(789, 256, init="he"), ReLU(), Dropout(0.2), Linear(256, 5, init="xavier")]
+np.random.seed(42)                      # reproducible weights, shuffling and dropout masks
+model = Sequential(
+    layers=[Linear(789, 256, init="he"), ReLU(), Dropout(0.2), Linear(256, 3, init="xavier")],
+    loss=SoftmaxCrossEntropyLoss(),     # the network outputs raw logits: no Softmax layer
+    optimizer=Adam(lr=0.001, weight_decay=1e-4),
+    classes=["Nothing", "Check", "Checkmate"],
+)
 
-x = np.random.rand(32, 789).astype(np.float32)
-for layer in layers:
-    x = layer.forward(x)                # (32, 5) raw logits
+X = np.random.rand(1000, 789).astype(np.float32)           # FEN features (issue #2)
+y = np.eye(3, dtype=np.float32)[np.random.randint(0, 3, 1000)]  # one-hot labels, same order as classes
 
-grad = np.ones_like(x)                  # dL/dY, given by the loss (issue #4)
-for layer in reversed(layers):
-    grad = layer.backward(grad)         # fills dW / db of each Linear
-
-for layer in layers:
-    layer.training = False              # inference mode: Dropout becomes the identity
+history = model.fit(X, y, epochs=30, batch_size=128, val_split=0.15, patience=5, verbose=True)
+print(history["best_epoch"], history["val_acc"][-1])
+print(model.predict(X[:5]))             # ['Check', 'Nothing', ...]
 ```
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md#32-neural-network-library-mytorch) for formulas, conventions and gradient checking.
+See [ARCHITECTURE.md](./ARCHITECTURE.md#32-neural-network-library-mytorch) for formulas, conventions, the training loop and gradient checking.
 
 ---
 

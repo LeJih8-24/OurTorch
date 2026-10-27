@@ -14,8 +14,11 @@ OurTorch/
 ├── .gitignore                  # Git ignore rules for caches, venvs, and binaries
 │
 ├── mytorch/                    # Custom lightweight neural network library
-│   ├── __init__.py             # Package initialization
+│   ├── __init__.py             # Public API (Sequential, losses, optimizers)
 │   ├── initializers.py         # Weight initialization strategies (Xavier, He, LeCun)
+│   ├── losses.py               # MSELoss, SoftmaxCrossEntropyLoss, get_loss()
+│   ├── optimizers.py           # SGD (momentum), Adam, get_optimizer()
+│   ├── model.py                # `Sequential` model: training loop, early stopping, predict
 │   └── layers/                 # Neural network layers package
 │       ├── __init__.py         # Exposes Layer and every concrete layer
 │       ├── base.py             # Abstract base class `Layer`
@@ -37,7 +40,10 @@ OurTorch/
     ├── gradcheck.py            # Reusable numerical gradient checker (finite differences)
     ├── test_cli.py             # Unit tests for CLI parsing and exit code 84 rules
     ├── test_initializers.py    # Unit tests for initializers and base Layer
-    └── test_layers.py          # Gradient checks and behaviour tests for every layer
+    ├── test_layers.py          # Gradient checks and behaviour tests for every layer
+    ├── test_losses.py          # Loss values, stability and gradient checks
+    ├── test_optimizers.py      # Update rules, convergence and config factory
+    └── test_xor.py             # Sequential: XOR acceptance test, early stopping, reproducibility
 ```
 
 ---
@@ -151,7 +157,59 @@ Every layer with a `backward()` is validated against a numerical gradient:
 3. Numeric gradients: central differences $\frac{L(x+\varepsilon) - L(x-\varepsilon)}{2\varepsilon}$ with $\varepsilon = 10^{-6}$.
 4. Relative error $\frac{\lVert a - n \rVert}{\lVert a \rVert + \lVert n \rVert}$ must be $< 10^{-5}$.
 
-Checks run in `float64` (float32 is too imprecise for this tolerance), and ReLU inputs are kept away from 0 where the derivative is undefined. Reuse `check_layer_gradients(layer, X)` when adding a new layer or a loss.
+Checks run in `float64` (float32 is too imprecise for this tolerance), and ReLU inputs are kept away from 0 where the derivative is undefined. Reuse `check_layer_gradients(layer, X)` when adding a new layer, and `check_loss_gradient(loss, y_pred, y_true)` when adding a new loss.
+
+#### `mytorch/losses.py`
+A loss exposes `forward(y_pred, y_true) -> float` (mean over the batch) and `backward() -> dL/dy_pred`, which is passed to the last layer.
+
+| Loss | Name in `.conf` | Forward | Gradient |
+| :--- | :--- | :--- | :--- |
+| `MSELoss` | `mse` | $\frac{1}{N \cdot K}\sum (\hat{y} - y)^2$ (mean over every element) | $\frac{2(\hat{y} - y)}{N \cdot K}$ |
+| `SoftmaxCrossEntropyLoss` | `cross_entropy` | $-\frac{1}{N}\sum Y \log \text{softmax}(z)$ on **raw logits** $z$ | $\frac{\text{softmax}(z) - Y}{N}$ |
+
+- Cross-entropy uses the log-sum-exp trick ($\log\text{softmax}(z) = z - \max z - \log\sum e^{z - \max z}$) instead of clipping probabilities: it never computes `log(0)` and stays exact for extreme logits.
+- `output_transform(outputs)` turns raw outputs into predictions: softmax for cross-entropy, identity for MSE. `Sequential.predict_proba()` uses it.
+- `get_loss(name)` builds a loss from its `.conf` name (`mse`, `cross_entropy`).
+
+#### `mytorch/optimizers.py`
+Optimizers receive the `(param, grad)` list of `Sequential.parameters()` and update `param` **in place**. Their internal state (velocity, Adam moments) is keyed by `id(param)`, which is why layers must never reallocate their parameter arrays.
+
+| Optimizer | Defaults | Update rule |
+| :--- | :--- | :--- |
+| `SGD` | `lr=0.01, momentum=0.9, weight_decay=0` | $v \leftarrow \mu v - \eta g$ ; $p \leftarrow p + v$ (plain SGD when $\mu = 0$) |
+| `Adam` | `lr=0.001, beta1=0.9, beta2=0.999, eps=1e-8, weight_decay=0` | $m \leftarrow \beta_1 m + (1-\beta_1) g$ ; $v \leftarrow \beta_2 v + (1-\beta_2) g^2$ ; $p \leftarrow p - \eta \frac{\hat{m}}{\sqrt{\hat{v}} + \epsilon}$ with bias correction $\hat{m} = \frac{m}{1-\beta_1^t}$, $\hat{v} = \frac{v}{1-\beta_2^t}$ |
+
+- **L2 regularization ([OPT1])**: `weight_decay` $\lambda$ adds $\lambda p$ to every gradient, i.e. it minimizes $L + \frac{\lambda}{2}\lVert W \rVert^2$. It applies to biases too (kept simple on purpose).
+- `lr` is a plain attribute: a learning-rate schedule can change `optimizer.lr` between epochs.
+- `get_optimizer({"type": "adam", "lr": 0.001, "weight_decay": 1e-4})` builds an optimizer from a `.conf` entry. Unknown types or parameters raise `ValueError`.
+
+#### `mytorch/model.py` — `Sequential(layers, loss, optimizer, classes)`
+Ties everything together. `classes` is the ordered list of output labels (e.g. `["Nothing", "Check", "Checkmate"]`): output neuron $i$ ↔ `classes[i]`, and training targets are one-hot vectors in the same order.
+
+| Method | Role |
+| :--- | :--- |
+| `train()` / `eval()` | Switch every layer between training mode (Dropout active) and inference mode |
+| `forward(X)` / `backward(grad)` | Run the layers in order / in reverse order |
+| `parameters()` | Concatenated `(param, grad)` pairs of all layers |
+| `train_step(X_batch, y_batch)` | forward → loss → backward → optimizer step; returns the batch loss |
+| `fit(X, y, epochs, batch_size, val_split=0.15, patience=5, validation_data=None, verbose=False)` | Full training loop (see below), returns a `history` dict |
+| `evaluate(X, y)` | `(mean loss, accuracy)` in inference mode, without changing the current mode |
+| `predict_proba(X)` | Outputs after `loss.output_transform` (softmax probabilities), by batches of 1024 |
+| `predict(X)` | List of class names (`argmax` of the probabilities) |
+| `get_config()` | `{"classes", "loss", "optimizer", "layers"}` — same structure as a `.conf` file (issue #3) |
+
+**`fit()` in detail** (anti-overfitting **[OPT1]**, mini-batch gradient descent **[OPT3]**):
+1. **Validation set**: `validation_data=(X_val, y_val)` if given, otherwise a random `val_split` fraction of `(X, y)` is held out. `val_split=0` trains on everything (no validation, no early stopping). For a final score, keep a separate **test set** and pass it to `evaluate()` only at the end.
+2. **Each epoch**: training mode, data shuffled, mini-batches of `batch_size`, one optimizer step per batch.
+3. **Metrics**: `train_loss` (mean of the batch losses), `train_acc`, `val_loss`, `val_acc` are appended to `history` (to plot learning curves for the benchmarks, issue #6).
+4. **Early stopping**: the weights with the best `val_loss` are saved; after `patience` epochs without improvement, training stops and **the best weights are restored**. `history["best_epoch"]` gives the chosen epoch. `patience=None` disables it.
+5. The model is left in **inference mode** at the end.
+
+With `verbose=True`, one line per epoch is printed on **stderr**: `stdout` is reserved for the predictions of `my_torch_analyzer --predict`.
+
+**Reproducibility**: shuffling, validation split, weight initialization and dropout masks all use NumPy's global RNG. Calling `np.random.seed(s)` before building and training the model reproduces exactly the same run (tested in `tests/test_xor.py`).
+
+**XOR acceptance test**: `Sequential([Linear(2, 8), ReLU(), Linear(8, 2)])` reaches 100 % accuracy and a loss < 0.02 in 300 epochs, with both Adam (`lr=0.05`) and SGD + momentum (`lr=0.1`). The tests use a fixed seed. Over 50 random seeds, about 88 % of runs succeed: with only 8 hidden units, some initializations leave dead ReLUs. This is expected for such a tiny network, not a bug.
 
 ---
 
@@ -161,7 +219,9 @@ Checks run in `float64` (float32 is too imprecise for this tolerance), and ReLU 
 flowchart LR
     CLI["CLI (analyzer/cli.py)"] --> Main["analyzer/main.py"]
     Main -->|Error| Utils["exit_error() -> Exit 84"]
-    Main -->|--train / --predict| Engine["mytorch Engine"]
+    Main -->|--train / --predict| Engine["mytorch/model.py (Sequential)"]
     Engine --> Layers["mytorch/layers (Linear, activations, Dropout)"]
+    Engine --> Loss["mytorch/losses.py"]
+    Engine --> Optim["mytorch/optimizers.py"]
     Layers --> Init["mytorch/initializers.py"]
 ```
