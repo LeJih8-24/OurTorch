@@ -30,6 +30,7 @@ OurTorch/
 │   ├── __init__.py             # Package initialization
 │   ├── main.py                 # Entrypoint copied to ./my_torch_analyzer
 │   ├── cli.py                  # Strict CLI parser & argument validator
+│   ├── fen_encoder.py          # FEN parsing/validation, input encoding, label mapping
 │   └── utils.py                # Central error handling (`exit_error`)
 │
 ├── scripts/                    # Standalone scripts and tools
@@ -39,6 +40,7 @@ OurTorch/
     ├── __init__.py             # Test path configuration
     ├── gradcheck.py            # Reusable numerical gradient checker (finite differences)
     ├── test_cli.py             # Unit tests for CLI parsing and exit code 84 rules
+    ├── test_fen_encoder.py     # FEN parsing on the subject boards, encoding and label mapping
     ├── test_initializers.py    # Unit tests for initializers and base Layer
     ├── test_layers.py          # Gradient checks and behaviour tests for every layer
     ├── test_losses.py          # Loss values, stability and gradient checks
@@ -82,6 +84,23 @@ Handles command-line parsing without relying on `argparse`'s default exit code (
   2. Exactly one mode (`--train` or `--predict`) must be specified.
   3. `--save SAVEFILE` is only permitted with `--train` (using `--save` with `--predict` exits with `84`).
   4. Both `LOADFILE` and `CHESSFILE` must exist, be regular files, be readable, and be non-empty (`size > 0`).
+
+#### `analyzer/fen_encoder.py`
+Turns `CHESSFILE` lines into network inputs and targets. Every invalid input raises `ValueError` (mapped to exit code `84` by the analyzer).
+- **`parse_chess_line(line, require_label)`**: splits a line into `(fen, label)`. The FEN has 6 fields, or 4 when the move counters are omitted; the rest of the line is the label (`"Nothing"`, `"Check White"`, `"Checkmate Black"`, ...). In train mode the label is mandatory and must be known; in predict mode it is optional and not validated.
+- **`validate_fen(fen)`**: 8 ranks of exactly 8 squares, pieces in `PNBRQKpnbrqk`, active color `w`/`b`, castling `-` or a subset of `KQkq` in order, en passant `-` or a rank 3/6 square, non-negative move counters.
+- **`read_chess_file(path, require_label)`**: parses every non-empty line, keeping the file order; errors mention `path:line`.
+- **`encode_fen(fen)` / `encode_fens(fens)`**: float32 vector of **773** values:
+
+| Indices | Content |
+| :--- | :--- |
+| `0 – 767` | One-hot planes: `piece * 64 + square`, pieces in `PNBRQKpnbrqk` order, square `0 = a8 … 63 = h1` (FEN reading order) |
+| `768` | Side to move (`1.0` = White) |
+| `769 – 772` | Castling rights `K`, `Q`, `k`, `q` |
+
+  The encoding deliberately contains **no hand-crafted chess features** (attacked king, number of attackers, escape squares, ...): computing them is already a rule-based check detector, which the subject forbids as a predictor. The network must learn these patterns from the raw board.
+- **`adapt_label(label, classes)` / `encode_labels(labels, classes)`**: maps dataset labels onto the classes of the loaded network, then one-hot encodes them in `classes` order. Finer labels are coarsened when needed: `Checkmate White → Checkmate → Check`, `Check Black → Check`, `Stalemate → Nothing`. A coarse label (`"Check"`) cannot fill finer classes (`"Check White"`) and raises.
+- **Label colors** follow the subject's example: the color is the side that *gives* check or mate (White to move and mated → `"Checkmate Black"`).
 
 ---
 
