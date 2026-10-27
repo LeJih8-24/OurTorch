@@ -87,6 +87,7 @@ Handles command-line parsing without relying on `argparse`'s default exit code (
 
 #### `analyzer/fen_encoder.py`
 Turns `CHESSFILE` lines into network inputs and targets. Every invalid input raises `ValueError` (mapped to exit code `84` by the analyzer).
+Step-by-step walkthrough with encoded examples: [docs/fen_encoder.MD](./docs/fen_encoder.MD).
 - **`parse_chess_line(line, require_label)`**: splits a line into `(fen, label)`. The FEN has 6 fields, or 4 when the move counters are omitted; the rest of the line is the label (`"Nothing"`, `"Check White"`, `"Checkmate Black"`, ...). In train mode the label is mandatory and must be known; in predict mode it is optional and not validated.
 - **`validate_fen(fen)`**: 8 ranks of exactly 8 squares, pieces in `PNBRQKpnbrqk`, active color `w`/`b`, castling `-` or a subset of `KQkq` in order, en passant `-` or a rank 3/6 square, non-negative move counters.
 - **`read_chess_file(path, require_label)`**: parses every non-empty line, keeping the file order; errors mention `path:line`.
