@@ -56,6 +56,10 @@ def save_network(model: Sequential, path: str, metadata: Optional[Dict[str, Any]
         try:
             with os.fdopen(fd, "wb") as file:
                 np.savez_compressed(file, **arrays)
+            # mkstemp creates the file as 0600: give it the usual permissions instead
+            umask = os.umask(0)
+            os.umask(umask)
+            os.chmod(tmp_path, 0o666 & ~umask)
             os.replace(tmp_path, path)
         except BaseException:
             if os.path.exists(tmp_path):

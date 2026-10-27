@@ -77,6 +77,12 @@ class TestSaveLoad(unittest.TestCase):
         loaded.fit(X, y, epochs=2, batch_size=32, val_split=0.0)
         self.assertFalse(np.array_equal(loaded.layers[1].W, model.layers[1].W))
 
+    def test_file_permissions_follow_umask(self):
+        save_network(build_from_config(VALID), self.path)
+        umask = os.umask(0)
+        os.umask(umask)
+        self.assertEqual(os.stat(self.path).st_mode & 0o777, 0o666 & ~umask)
+
     def test_metadata(self):
         save_network(build_from_config(VALID), self.path, metadata={"encoder": "fen-v1", "input_size": 20})
         self.assertEqual(read_metadata(self.path), {"encoder": "fen-v1", "input_size": 20})
