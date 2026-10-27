@@ -164,5 +164,17 @@ class TestLoadConfig(unittest.TestCase):
             load_config(self.write(json.dumps({"classes": ["a"]})))
 
 
+class TestShippedConfigs(unittest.TestCase):
+    CONFIG_DIR = os.path.join(os.path.dirname(__file__), "..", "configs")
+
+    def test_every_shipped_config_is_valid(self):
+        names = sorted(f for f in os.listdir(self.CONFIG_DIR) if f.endswith(".conf"))
+        self.assertIn("full_network.conf", names)
+        for name in names:
+            with self.subTest(name):
+                model = build_from_config(os.path.join(self.CONFIG_DIR, name))
+                self.assertIsInstance(model.layers[0], Normalization)
+
+
 if __name__ == "__main__":
     unittest.main()
