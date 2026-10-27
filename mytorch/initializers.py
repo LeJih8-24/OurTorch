@@ -40,6 +40,12 @@ def lecun_normal(shape: Tuple[int, int]) -> np.ndarray:
 
 
 _INITIALIZERS: Dict[str, Callable[[Tuple[int, int]], np.ndarray]] = {
+    # Short aliases used in .conf files (normal variants by default)
+    "xavier": xavier_normal,
+    "glorot": xavier_normal,
+    "he": he_normal,
+    "kaiming": he_normal,
+    "lecun": lecun_normal,
     "xavier_normal": xavier_normal,
     "glorot_normal": xavier_normal,
     "xavier_uniform": xavier_uniform,
