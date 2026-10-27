@@ -2,6 +2,8 @@
 
 This document explains the directory layout, architectural design, and core modules of **OurTorch**.
 
+> A complete, more pedagogical documentation (in French) explaining every component is available in [docs/](./docs/README.md).
+
 ---
 
 ## 1. Directory Structure
@@ -11,6 +13,7 @@ OurTorch/
 ├── Makefile                    # Build system for my_torch_analyzer & my_torch_generator
 ├── README.md                   # General project overview and usage guide
 ├── ARCHITECTURE.md             # Detailed structure and technical explanations
+├── docs/                       # Complete documentation in French (one chapter per topic)
 ├── .gitignore                  # Git ignore rules for caches, venvs, and binaries
 │
 ├── configs/                    # Blank network configurations (.conf, JSON)

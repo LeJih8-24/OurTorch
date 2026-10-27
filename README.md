@@ -163,3 +163,15 @@ Run the unit test suite using `pytest` (or Python's built-in `unittest`):
 ## Documentation Index
 
 - **[ARCHITECTURE.md](./ARCHITECTURE.md)**: Detailed directory structure, module breakdown, mathematical specifications for initializers, and design patterns used across `mytorch` and `analyzer`.
+- **[docs/](./docs/README.md)** *(French)*: complete documentation of every component, for the team and the defense:
+
+  | Chapter | Content |
+  | :--- | :--- |
+  | [01 — Vue d'ensemble](./docs/01-vue-d-ensemble.md) | Problem, components, network life cycle, step-by-step prediction |
+  | [02 — Théorie](./docs/02-theorie.md) | Matrices, activations, softmax, loss, gradient descent, backpropagation, initialization, overfitting |
+  | [03 — Les couches](./docs/03-couches.md) | `Layer` contract, initializers, `Linear`, activations, `Dropout`, `Normalization` |
+  | [04 — Entraînement](./docs/04-entrainement.md) | Losses, optimizers, `Sequential` and `fit()` |
+  | [05 — Configuration et sauvegarde](./docs/05-configuration-et-sauvegarde.md) | `.conf` format, `.nn` format, `my_torch_generator` |
+  | [06 — Analyseur et outils](./docs/06-analyseur-et-outils.md) | `my_torch_analyzer` CLI, error handling, `Makefile` |
+  | [07 — Tests](./docs/07-tests.md) | Test map, gradient check, writing tests |
+  | [08 — Soutenance](./docs/08-soutenance.md) | Likely questions and answers, known limits, demos |
