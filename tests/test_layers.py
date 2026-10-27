@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 import unittest
 import numpy as np
 
-from mytorch.layers import LeakyReLU, Linear, ReLU, Sigmoid, Softmax, Tanh
+from mytorch.layers import Dropout, LeakyReLU, Linear, ReLU, Sigmoid, Softmax, Tanh
 from tests.gradcheck import check_layer_gradients
 
 GRAD_TOLERANCE = 1e-5
@@ -115,6 +115,59 @@ class TestActivations(unittest.TestCase):
         for layer in (ReLU(), LeakyReLU(), Sigmoid(), Tanh(), Softmax()):
             with self.assertRaises(RuntimeError):
                 layer.backward(np.ones((2, 2)))
+
+
+class TestDropout(unittest.TestCase):
+    def setUp(self) -> None:
+        np.random.seed(0)
+        self.X = np.ones((2000, 50))
+
+    def test_training_drops_and_rescales(self):
+        layer = Dropout(rate=0.2)
+        out = layer.forward(self.X)
+        dropped = np.mean(out == 0.0)
+        self.assertAlmostEqual(float(dropped), 0.2, delta=0.01)
+        np.testing.assert_allclose(np.unique(out), [0.0, 1.25])
+        # Inverted dropout keeps the expected activation unchanged
+        self.assertAlmostEqual(float(out.mean()), 1.0, delta=0.01)
+
+    def test_backward_uses_forward_mask(self):
+        layer = Dropout(rate=0.5)
+        X = np.random.standard_normal((10, 8)) + 5.0
+        out = layer.forward(X)
+        G = np.random.standard_normal(X.shape)
+        np.testing.assert_allclose(layer.backward(G), G * out / X)
+
+    def test_eval_mode_is_identity(self):
+        layer = Dropout(rate=0.5)
+        layer.training = False
+        out = layer.forward(self.X)
+        self.assertIs(out, self.X)
+        G = np.ones_like(self.X)
+        self.assertIs(layer.backward(G), G)
+
+    def test_mc_dropout_stays_active_in_eval(self):
+        layer = Dropout(rate=0.5, mc_dropout=True)
+        layer.training = False
+        out1 = layer.forward(self.X)
+        out2 = layer.forward(self.X)
+        self.assertTrue(np.any(out1 == 0.0))
+        self.assertFalse(np.array_equal(out1, out2))
+
+    def test_reproducible_with_seed(self):
+        np.random.seed(7)
+        out1 = Dropout(0.3).forward(self.X)
+        np.random.seed(7)
+        out2 = Dropout(0.3).forward(self.X)
+        np.testing.assert_array_equal(out1, out2)
+
+    def test_rate_validation_and_config(self):
+        for rate in (-0.1, 1.0, 1.5):
+            with self.assertRaises(ValueError):
+                Dropout(rate)
+        self.assertEqual(Dropout(0.2).get_config(), {"type": "dropout", "rate": 0.2, "mc_dropout": False})
+        self.assertEqual(Dropout().parameters(), [])
+        self.assertIs(Dropout(0.0).forward(self.X), self.X)
 
 
 if __name__ == "__main__":
