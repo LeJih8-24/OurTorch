@@ -13,6 +13,45 @@ The project is split into three main components:
 
 ---
 
+## Project Status
+
+| Component | Status | Issue |
+| :--- | :--- | :--- |
+| Project structure, Makefile, error handler | ✅ Done | #9 |
+| `my_torch_analyzer` argument parser | ✅ Done | #7 |
+| Weight initializers & base `Layer` | ✅ Done | #8 |
+| `Linear`, activations (ReLU, LeakyReLU, Sigmoid, Tanh, Softmax), `Dropout` / MC Dropout | ✅ Done | #5 |
+| Losses, optimizers (SGD, Adam), `Sequential` model | ⏳ To do | #4 |
+| `.conf` parser, `.nn` save/load, `my_torch_generator` | ⏳ To do | #3 |
+| FEN parser & feature encoding | ⏳ To do | #2 |
+| `--train` / `--predict` pipelines | ⏳ To do | #1 |
+| Benchmarks, pre-trained networks, docs | ⏳ To do | #6 |
+
+### Using the layers (preview)
+
+```python
+import numpy as np
+from mytorch.layers import Dropout, Linear, ReLU
+
+np.random.seed(42)                      # reproducible weights and dropout masks
+layers = [Linear(789, 256, init="he"), ReLU(), Dropout(0.2), Linear(256, 5, init="xavier")]
+
+x = np.random.rand(32, 789).astype(np.float32)
+for layer in layers:
+    x = layer.forward(x)                # (32, 5) raw logits
+
+grad = np.ones_like(x)                  # dL/dY, given by the loss (issue #4)
+for layer in reversed(layers):
+    grad = layer.backward(grad)         # fills dW / db of each Linear
+
+for layer in layers:
+    layer.training = False              # inference mode: Dropout becomes the identity
+```
+
+See [ARCHITECTURE.md](./ARCHITECTURE.md#32-neural-network-library-mytorch) for formulas, conventions and gradient checking.
+
+---
+
 ## Quick Start
 
 ### 1. Build the Executables

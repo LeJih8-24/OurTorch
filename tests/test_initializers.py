@@ -66,6 +66,11 @@ class TestInitializersAndBaseLayer(unittest.TestCase):
         self.assertIs(get_initializer("he_normal"), he_normal)
         self.assertIs(get_initializer("lecun_normal"), lecun_normal)
 
+    def test_get_initializer_short_aliases(self):
+        self.assertIs(get_initializer("xavier"), xavier_normal)
+        self.assertIs(get_initializer("He"), he_normal)
+        self.assertIs(get_initializer("lecun"), lecun_normal)
+
     def test_get_initializer_invalid_raises(self):
         with self.assertRaises(ValueError):
             get_initializer("unknown_init")
