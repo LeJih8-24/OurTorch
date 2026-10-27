@@ -22,3 +22,8 @@ env/
 .idea/
 *.swp
 .DS_Store
+
+# Generated networks (my_torch_generator, training runs).
+# Only the pre-trained networks evaluated by the autograder are versioned.
+*.nn
+!my_torch_network*.nn
