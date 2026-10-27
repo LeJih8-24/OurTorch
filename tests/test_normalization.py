@@ -6,6 +6,9 @@ import unittest
 import numpy as np
 
 from mytorch.layers import Linear, Normalization, ReLU
+from mytorch.losses import SoftmaxCrossEntropyLoss
+from mytorch.model import Sequential
+from mytorch.optimizers import SGD, Adam
 from tests.gradcheck import check_layer_gradients
 
 GRAD_TOLERANCE = 1e-5
@@ -97,6 +100,53 @@ class TestStateDict(unittest.TestCase):
             layer.load_state_dict({"W": np.zeros((3, 2))})
         with self.assertRaises(ValueError):
             layer.load_state_dict({"W": np.zeros((2, 2)), "b": np.zeros((1, 2))})
+
+
+class TestNormalizationInSequential(unittest.TestCase):
+    def setUp(self) -> None:
+        np.random.seed(0)
+        # Two classes separated on badly scaled features (~1000 and ~0.001)
+        X = np.vstack([np.random.randn(200, 2) - 1, np.random.randn(200, 2) + 1])
+        self.X = (X * np.array([1000.0, 0.001])).astype(np.float32)
+        self.y = np.repeat(np.eye(2, dtype=np.float32), 200, axis=0)
+
+    def model(self, optimizer, normalize: bool = True) -> Sequential:
+        layers = [Linear(2, 16), ReLU(), Linear(16, 2)]
+        if normalize:
+            layers.insert(0, Normalization(2))
+        return Sequential(layers, SoftmaxCrossEntropyLoss(), optimizer, ["a", "b"])
+
+    def test_fit_adapts_on_training_part_only(self):
+        model = self.model(Adam())
+        X_val = np.full((10, 2), 1e6, dtype=np.float32)
+        model.fit(self.X, self.y, epochs=1, batch_size=32,
+                  validation_data=(X_val, self.y[:10]))
+        norm = model.layers[0]
+        self.assertEqual(int(norm.count[0]), 400)
+        np.testing.assert_allclose(norm.mean, self.X.mean(axis=0, keepdims=True), rtol=1e-4)
+
+    def test_statistics_not_recomputed_on_retraining(self):
+        model = self.model(Adam())
+        model.fit(self.X, self.y, epochs=1, batch_size=32, val_split=0.0)
+        mean_before = model.layers[0].mean.copy()
+        model.fit(self.X * 2, self.y, epochs=1, batch_size=32, val_split=0.0)
+        np.testing.assert_array_equal(model.layers[0].mean, mean_before)
+
+    def test_normalization_makes_badly_scaled_data_learnable(self):
+        history = self.model(SGD(lr=0.05)).fit(self.X, self.y, epochs=20, batch_size=32, val_split=0.0)
+        self.assertGreater(history["train_acc"][-1], 0.9)
+
+    def test_normalization_only_as_first_layer(self):
+        with self.assertRaises(ValueError):
+            Sequential([Linear(2, 2), Normalization(2)], SoftmaxCrossEntropyLoss(), Adam(), ["a", "b"])
+
+    def test_config_contains_training_and_seed(self):
+        model = Sequential([Normalization(2), Linear(2, 2)], SoftmaxCrossEntropyLoss(), Adam(), ["a", "b"],
+                           training_config={"epochs": 3, "batch_size": 8}, seed=7)
+        config = model.get_config()
+        self.assertEqual(config["layers"][0], {"type": "normalization", "features": 2})
+        self.assertEqual(config["training"], {"epochs": 3, "batch_size": 8})
+        self.assertEqual(config["seed"], 7)
 
 
 if __name__ == "__main__":

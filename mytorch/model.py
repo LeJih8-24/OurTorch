@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 
 from mytorch.layers.base import Layer
+from mytorch.layers.normalization import Normalization
 from mytorch.losses import Loss
 from mytorch.optimizers import Optimizer, Parameters
 
@@ -16,15 +17,34 @@ class Sequential:
     one-hot vectors for classification, in the same order as `classes`.
     Randomness (shuffling, validation split, dropout) uses NumPy's global RNG,
     so np.random.seed() makes a training run reproducible.
+
+    A Normalization layer is only allowed in first position: its statistics are
+    computed on the raw training inputs by fit().
+
+    `training_config` (epochs, batch_size, val_split, patience) and `seed` come
+    from the .conf file; they are kept so the network can be saved and retrained
+    with the same settings: model.fit(X, y, **model.training_config).
     """
 
-    def __init__(self, layers: List[Layer], loss: Loss, optimizer: Optimizer, classes: List[str]) -> None:
+    def __init__(
+        self,
+        layers: List[Layer],
+        loss: Loss,
+        optimizer: Optimizer,
+        classes: List[str],
+        training_config: Optional[Dict[str, Any]] = None,
+        seed: Optional[int] = None,
+    ) -> None:
         if not layers:
             raise ValueError("Sequential needs at least one layer.")
+        if any(isinstance(layer, Normalization) for layer in layers[1:]):
+            raise ValueError("A Normalization layer is only allowed as the first layer.")
         self.layers = list(layers)
         self.loss = loss
         self.optimizer = optimizer
         self.classes = list(classes)
+        self.training_config: Dict[str, Any] = dict(training_config or {})
+        self.seed = seed
 
     # ----- modes ---------------------------------------------------------------
 
@@ -81,6 +101,8 @@ class Sequential:
         epochs, training stops and the best weights are restored
         (patience=None disables it). Without validation data there is no
         early stopping.
+        If the first layer is a Normalization that was never adapted, its
+        statistics are computed here on the training part of the data.
 
         Returns a history dict: train_loss, train_acc, val_loss, val_acc
         (one value per epoch) and best_epoch (1-based, None without validation).
@@ -105,6 +127,13 @@ class Sequential:
         else:
             X_val = y_val = None
             X_train, y_train = X, y
+
+        # Input statistics come from the training part only (never from validation
+        # data, which would leak information). They are computed once: retraining a
+        # loaded network keeps the statistics it was saved with.
+        first = self.layers[0]
+        if isinstance(first, Normalization) and not first.adapted:
+            first.adapt(X_train)
 
         history: History = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": [], "best_epoch": None}
         best_val = np.inf
@@ -187,6 +216,8 @@ class Sequential:
             "loss": self.loss.name,
             "optimizer": self.optimizer.get_config(),
             "layers": [layer.get_config() for layer in self.layers],
+            "training": dict(self.training_config),
+            "seed": self.seed,
         }
 
     @staticmethod
