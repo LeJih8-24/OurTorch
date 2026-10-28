@@ -113,7 +113,7 @@ Couche entièrement connectée : chaque sortie est une combinaison de toutes les
 
 Erreurs : dimensions ≤ 0 ou initialiseur inconnu → `ValueError` à la construction ; mauvaise largeur d'entrée → `ValueError` ; `backward` avant `forward` → `RuntimeError`.
 
-**Nombre de paramètres** : $n_{in} \times n_{out} + n_{out}$. Pour `Linear(789, 256)` : 202 240 paramètres.
+**Nombre de paramètres** : $n_{in} \times n_{out} + n_{out}$. Pour `Linear(773, 256)` : 198 144 paramètres.
 
 ```python
 layer = Linear(3, 2, init="xavier")

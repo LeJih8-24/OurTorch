@@ -24,8 +24,8 @@ Deux formats de fichiers, deux rôles :
   "training": {"epochs": 40, "batch_size": 128, "val_split": 0.15, "patience": 5},
   "seed": 42,                                         // graine : poids reproductibles
   "layers": [
-    {"type": "normalization"},                        // taille déduite : 789
-    {"type": "linear", "in": 789, "out": 256, "init": "he"},
+    {"type": "normalization"},                        // taille déduite : 773
+    {"type": "linear", "in": 773, "out": 256, "init": "he"},
     {"type": "relu"},
     {"type": "dropout", "rate": 0.2},
     {"type": "linear", "in": 256, "out": 128, "init": "he"},
@@ -102,7 +102,7 @@ history = model.fit(X, y, **model.training_config)    # réglages du fichier
 
 Toutes : normalisation en entrée, Adam (`lr=0.001`, `weight_decay=1e-4`), He pour les couches cachées, Xavier en sortie, graine 42. Plus il y a de classes, plus le réseau est large (et plus il est régularisé).
 
-⚠️ **Taille d'entrée 789** : c'est la taille prévue par l'encodeur FEN (issue #2). Si l'encodeur change de taille, il faut modifier le premier `linear.in` de chaque fichier.
+⚠️ **Taille d'entrée 773** : c'est `INPUT_SIZE` de l'encodeur FEN (`analyzer/fen_encoder.py` : 768 cases × pièces + trait + 4 droits de roque). Si l'encodeur change, il faut modifier le premier `linear.in` de chaque fichier. Le test `test_shipped_configs_match_the_fen_encoder` échoue tant que ce n'est pas fait.
 
 ---
 

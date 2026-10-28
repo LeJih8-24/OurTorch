@@ -23,7 +23,7 @@ The project is split into three main components:
 | `Linear`, activations (ReLU, LeakyReLU, Sigmoid, Tanh, Softmax), `Dropout` / MC Dropout | ✅ Done | #5 |
 | Losses (MSE, cross-entropy), optimizers (SGD, Adam), `Sequential` model with early stopping | ✅ Done | #4 |
 | Input normalization, `.conf` parser, `.nn` save/load, `my_torch_generator`, basic/medium/full configs | ✅ Done | #3 |
-| FEN parser & feature encoding | ⏳ To do | #2 |
+| FEN parser & feature encoding (773 features) | ✅ Done | #2 |
 | `--train` / `--predict` pipelines | ⏳ To do | #1 |
 | Benchmarks, pre-trained networks, docs | ⏳ To do | #6 |
 
@@ -47,13 +47,13 @@ from mytorch.layers import Dropout, Linear, ReLU
 
 np.random.seed(42)                      # reproducible weights, shuffling and dropout masks
 model = Sequential(
-    layers=[Linear(789, 256, init="he"), ReLU(), Dropout(0.2), Linear(256, 3, init="xavier")],
+    layers=[Linear(773, 256, init="he"), ReLU(), Dropout(0.2), Linear(256, 3, init="xavier")],
     loss=SoftmaxCrossEntropyLoss(),     # the network outputs raw logits: no Softmax layer
     optimizer=Adam(lr=0.001, weight_decay=1e-4),
     classes=["Nothing", "Check", "Checkmate"],
 )
 
-X = np.random.rand(1000, 789).astype(np.float32)           # FEN features (issue #2)
+X = np.random.rand(1000, 773).astype(np.float32)           # FEN features (encode_fens)
 y = np.eye(3, dtype=np.float32)[np.random.randint(0, 3, 1000)]  # one-hot labels, same order as classes
 
 history = model.fit(X, y, epochs=30, batch_size=128, val_split=0.15, patience=5, verbose=True)
@@ -174,4 +174,5 @@ Run the unit test suite using `pytest` (or Python's built-in `unittest`):
   | [05 — Configuration et sauvegarde](./docs/05-configuration-et-sauvegarde.md) | `.conf` format, `.nn` format, `my_torch_generator` |
   | [06 — Analyseur et outils](./docs/06-analyseur-et-outils.md) | `my_torch_analyzer` CLI, error handling, `Makefile` |
   | [07 — Tests](./docs/07-tests.md) | Test map, gradient check, writing tests |
-  | [08 — Soutenance](./docs/08-soutenance.md) | Likely questions and answers, known limits, demos |
+  | [08 — Soutenance](./docs/08-soutenance.md) | Likely questions and answers, compliance with the subject, known limits, demos |
+  | [09 — Guide d'utilisation](./docs/09-guide-utilisation.md) | How to use `mytorch`: ready-to-run examples, recipes, common errors, API cheat sheet |

@@ -11,7 +11,7 @@ Non. Seul NumPy sert au calcul matriciel (`@`, `exp`, `sum`…). Le forward, la 
 Par le **gradient check** : chaque couche et chaque loss est comparée à une dérivée numérique par différences finies, avec une erreur relative < $10^{-5}$ (`tests/gradcheck.py`). Voir [07](07-tests.md#le-gradient-check).
 
 **« Le prédicteur utilise-t-il un algorithme d'échecs ? »**
-Non. Un algorithme d'échecs peut seulement servir à **générer les labels** du jeu d'entraînement, ce que le sujet autorise. La prédiction vient uniquement du réseau entraîné. ⚠️ Point à surveiller pour l'encodeur (#2) : des features qui calculent directement « le roi est en échec » reviendraient presque à calculer la réponse à la main. Il faut pouvoir justifier chaque feature, et idéalement comparer les résultats avec et sans.
+Non. Un algorithme d'échecs peut seulement servir à **générer les labels** du jeu d'entraînement, ce que le sujet autorise. La prédiction vient uniquement du réseau entraîné. L'encodeur (`analyzer/fen_encoder.py`) ne donne au réseau que la **description brute** de la position (pièces par case, trait, roques) : aucune feature ne calcule « le roi est attaqué ». C'est le réseau qui doit apprendre cette règle.
 
 **« Où est la gestion d'erreurs ? »**
 Toutes les erreurs passent par `exit_error()` (`analyzer/utils.py`) : message sur stderr, code 84. La librairie lève des `ValueError` aux messages précis, transformées en `exit_error` par les exécutables. Voir [06](06-analyseur-et-outils.md).
@@ -31,7 +31,7 @@ He ($\text{Var} = 2/n_{in}$) compense le fait que ReLU annule la moitié des val
 Distinguer 5 classes (avec la couleur du camp) demande d'apprendre plus de règles que 2. On augmente la capacité (512 → 256 neurones) et la régularisation (dropout 0.3).
 
 **« Combien de paramètres ? »**
-$n_{in} \times n_{out} + n_{out}$ par couche `Linear`. Pour `medium_network.conf` : $(789 \cdot 256 + 256) + (256 \cdot 128 + 128) + (128 \cdot 3 + 3) = 202\,240 + 32\,896 + 387 = 235\,523$ (vérifiable avec `sum(p.size for p, _ in model.parameters())`).
+$n_{in} \times n_{out} + n_{out}$ par couche `Linear`. Pour `medium_network.conf` : $(773 \cdot 256 + 256) + (256 \cdot 128 + 128) + (128 \cdot 3 + 3) = 198\,144 + 32\,896 + 387 = 231\,427$ (vérifiable avec `sum(p.size for p, _ in model.parameters())`).
 
 ## Entraînement
 
@@ -64,6 +64,35 @@ Lisible, modifiable à la main, sans dépendance, et identique à la sortie de `
 **« Pourquoi les réseaux générés sont-ils différents si la graine est fixée ? »**
 Le réseau *k* reçoit la graine `seed + k - 1` : les réseaux diffèrent entre eux, mais la même commande redonne toujours les mêmes fichiers.
 
+## Conformité de `mytorch` au sujet
+
+État au 28/10/2026, exigence par exigence (`SPECIFICATIONS.MD`) :
+
+| Exigence | Niveau | État | Où |
+| :--- | :--- | :--- | :--- |
+| Aucune librairie de réseaux de neurones, uniquement NumPy | DOIT | ✅ | Tout `mytorch/` |
+| Module importable | DOIT | ✅ | `import mytorch` |
+| [NN1] Créer un réseau | DOIT | ✅ | `build_from_config`, `Sequential` |
+| [NN2] Sauvegarder / charger | DOIT | ✅ | `save_network`, `load_network` |
+| [NN3] Entraîner | DOIT | ✅ | `Sequential.fit` |
+| Hyperparamètres : topologie, activations par couche, loss, taille de batch, époques | Liste indicative | ✅ | `.conf` |
+| Hyperparamètres : optimiseur (SGD, momentum, Adam), L2, dropout, initialisation, graine | Liste indicative | ✅ | `.conf` |
+| Hyperparamètres : **planning de learning rate** (decay, warmup) | Liste indicative | ❌ | Faisable à la main (`optimizer.lr`, guide 09 §8.3) |
+| [GEN1] Générateur depuis un fichier de configuration | Conseillé | ✅ | `my_torch_generator` |
+| [GEN2] Génération dans le code | Conseillé | ✅ | `Sequential(...)` |
+| Format de fichier justifié (topologie, poids, normalisation, encodage des sorties) | DEVRAIT | ✅ | [05](05-configuration-et-sauvegarde.md) |
+| [OPT1] Lutte contre l'overfitting | **DOIT** | ✅ | Validation, early stopping, dropout, L2 |
+| [OPT1] Jeu de test, validation croisée | Exemple cité | ⚠️ | Test : à la main (guide 09 §4.2) ; validation croisée absente |
+| [OPT2] Optimisation des hyperparamètres (grid / random search, génétique…) | Attendu en soutenance | ❌ | Grid search écrite à la main dans le guide (09 §8.1), pas d'outil dans la librairie |
+| [OPT3] Mini-batch, initialisations | Exemples cités | ✅ | `fit`, `initializers.py` |
+| [OPT3] MC Dropout | Exemple cité | ⚠️ | Couche prête, pas de méthode de prédiction dédiée |
+| Benchmarks avec graphiques | DEVRAIT | ❌ | `history` fournit les données ; script et graphiques : issue #6 |
+| [B2] Plusieurs courbes sur un graphique | Bonus | ❌ | Issue #6 |
+| [B3] Métriques multiples (précision, rappel, F1) | Bonus | ❌ | Calcul à la main dans le guide (09 §5) |
+| [B1] Parallélisme | Bonus | ❌ | — |
+
+**Bilan** : toutes les exigences **obligatoires** de la librairie sont remplies. Ce qui manque relève des attentes de soutenance ([OPT2], benchmarks) et des bonus.
+
 ## Limites connues et améliorations prévues
 
 Il vaut mieux les connaître et les annoncer avant qu'on les relève :
@@ -75,7 +104,8 @@ Il vaut mieux les connaître et les annoncer avant qu'on les relève :
 | Seule l'**accuracy** est mesurée | Elle masque les erreurs sur les classes rares | Matrice de confusion, précision, rappel, F1 par classe [B3] |
 | Pas de **planning de learning rate** | Réglage manuel du `lr` | Décroissance par paliers ou cosinus (`optimizer.lr` est déjà modifiable) |
 | MC Dropout non exploité côté modèle | Pas d'estimation d'incertitude | `Sequential.predict_mc(X, T)` |
-| Pas de **recherche d'hyperparamètres** [OPT2] | Exigé par le sujet | Grid search / random search / algorithme génétique |
+| Pas de **recherche d'hyperparamètres** [OPT2] | Attendue en soutenance | Grid search / random search / algorithme génétique dans la librairie |
+| Pas de **validation croisée** | Mesure de performance moins fiable sur un petit jeu de données | k-fold : entraîner k fois sur k découpages et moyenner |
 | État de l'optimiseur non sauvegardé | Un réentraînement repart avec Adam « à froid » | Sauvegarder `m`, `v`, `t` si besoin |
 | Le `weight_decay` s'applique aussi aux biais | Effet négligeable en pratique | Exclure les biais |
 

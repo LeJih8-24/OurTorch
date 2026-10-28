@@ -18,7 +18,7 @@
 | `analyzer/cli.py` | Lecture et validation des arguments | ✅ Fait (#7) |
 | `analyzer/utils.py` | `exit_error()` : message sur stderr + code 84 | ✅ Fait (#9) |
 | `analyzer/main.py` | Point d'entrée | ⚠️ Valide les arguments puis renvoie 0 : n'entraîne ni ne prédit encore |
-| `analyzer/fen_encoder.py` | FEN → vecteur de 789 nombres, labels → one-hot | ⏳ Issue #2 |
+| `analyzer/fen_encoder.py` | FEN → vecteur de 773 nombres, labels → one-hot ([détails](fen_encoder.MD)) | ✅ Fait (#2) |
 | `analyzer/pipeline.py` | Branchement `--train` / `--predict` | ⏳ Issue #1 |
 
 ## `analyzer/utils.py`
@@ -71,18 +71,19 @@ Esquisse du futur pipeline, avec les briques **déjà disponibles** :
 import numpy as np
 from analyzer.cli import parse_args
 from analyzer.utils import exit_error
+from analyzer.fen_encoder import encode_fens, encode_labels, read_chess_file
 from mytorch.serialization import load_network, save_network
 
 args = parse_args()
 try:
     model = load_network(args.loadfile)                    # ✅ disponible
-    positions, labels = read_chess_file(args.chessfile)    # ⏳ issue #2
-    X = encode_positions(positions)                        # ⏳ issue #2
+    fens, labels = read_chess_file(args.chessfile, require_label=(args.mode == "train"))  # ✅
+    X = encode_fens(fens)                                  # ✅
     if args.mode == "predict":
         for label in model.predict(X):                     # ✅ disponible
             print(label)
     else:
-        y = encode_labels(labels, model.classes)           # ⏳ issue #2
+        y = encode_labels(labels, model.classes)           # ✅
         if model.seed is not None:
             np.random.seed(model.seed)                     # reproductibilité
         model.fit(X, y, **model.training_config)           # ✅ disponible

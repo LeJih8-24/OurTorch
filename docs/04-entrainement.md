@@ -167,14 +167,14 @@ from mytorch.layers import Dropout, Linear, Normalization, ReLU
 
 np.random.seed(42)
 model = Sequential(
-    layers=[Normalization(789), Linear(789, 256, init="he"), ReLU(), Dropout(0.2),
+    layers=[Normalization(773), Linear(773, 256, init="he"), ReLU(), Dropout(0.2),
             Linear(256, 3, init="xavier")],
     loss=SoftmaxCrossEntropyLoss(),           # le réseau sort des logits : pas de Softmax
     optimizer=Adam(lr=0.001, weight_decay=1e-4),
     classes=["Nothing", "Check", "Checkmate"],
 )
 
-X = np.random.rand(1000, 789).astype(np.float32)                 # features (encodeur FEN, issue #2)
+X = np.random.rand(1000, 773).astype(np.float32)                 # features (en vrai : encode_fens(...))
 y = np.eye(3, dtype=np.float32)[np.random.randint(0, 3, 1000)]   # one-hot, même ordre que classes
 
 history = model.fit(X, y, epochs=30, batch_size=128, val_split=0.15, patience=5, verbose=True)

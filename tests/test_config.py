@@ -175,6 +175,18 @@ class TestShippedConfigs(unittest.TestCase):
                 model = build_from_config(os.path.join(self.CONFIG_DIR, name))
                 self.assertIsInstance(model.layers[0], Normalization)
 
+    def test_shipped_configs_match_the_fen_encoder(self):
+        # The input size of every shipped network must follow the FEN encoder,
+        # and every class must be a label the encoder knows.
+        from analyzer.fen_encoder import INPUT_SIZE, KNOWN_LABELS, encode_fens
+        X = encode_fens(["rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"])
+        for name in sorted(f for f in os.listdir(self.CONFIG_DIR) if f.endswith(".conf")):
+            with self.subTest(name):
+                model = build_from_config(os.path.join(self.CONFIG_DIR, name))
+                self.assertEqual(model.layers[0].features, INPUT_SIZE)
+                self.assertTrue(set(model.classes) <= set(KNOWN_LABELS))
+                self.assertIn(model.predict(X)[0], model.classes)
+
 
 if __name__ == "__main__":
     unittest.main()
