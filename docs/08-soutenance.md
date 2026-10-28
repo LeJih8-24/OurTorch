@@ -11,7 +11,7 @@ Non. Seul NumPy sert au calcul matriciel (`@`, `exp`, `sum`…). Le forward, la 
 Par le **gradient check** : chaque couche et chaque loss est comparée à une dérivée numérique par différences finies, avec une erreur relative < $10^{-5}$ (`tests/gradcheck.py`). Voir [07](07-tests.md#le-gradient-check).
 
 **« Le prédicteur utilise-t-il un algorithme d'échecs ? »**
-Non. Un algorithme d'échecs peut seulement servir à **générer les labels** du jeu d'entraînement, ce que le sujet autorise. La prédiction vient uniquement du réseau entraîné. ⚠️ Point à surveiller pour l'encodeur (#2) : des features qui calculent directement « le roi est en échec » reviendraient presque à calculer la réponse à la main. Il faut pouvoir justifier chaque feature, et idéalement comparer les résultats avec et sans.
+Non. Un algorithme d'échecs peut seulement servir à **générer les labels** du jeu d'entraînement, ce que le sujet autorise. La prédiction vient uniquement du réseau entraîné. L'encodeur (`analyzer/fen_encoder.py`) ne donne au réseau que la **description brute** de la position (pièces par case, trait, roques) : aucune feature ne calcule « le roi est attaqué ». C'est le réseau qui doit apprendre cette règle.
 
 **« Où est la gestion d'erreurs ? »**
 Toutes les erreurs passent par `exit_error()` (`analyzer/utils.py`) : message sur stderr, code 84. La librairie lève des `ValueError` aux messages précis, transformées en `exit_error` par les exécutables. Voir [06](06-analyseur-et-outils.md).
@@ -31,7 +31,7 @@ He ($\text{Var} = 2/n_{in}$) compense le fait que ReLU annule la moitié des val
 Distinguer 5 classes (avec la couleur du camp) demande d'apprendre plus de règles que 2. On augmente la capacité (512 → 256 neurones) et la régularisation (dropout 0.3).
 
 **« Combien de paramètres ? »**
-$n_{in} \times n_{out} + n_{out}$ par couche `Linear`. Pour `medium_network.conf` : $(789 \cdot 256 + 256) + (256 \cdot 128 + 128) + (128 \cdot 3 + 3) = 202\,240 + 32\,896 + 387 = 235\,523$ (vérifiable avec `sum(p.size for p, _ in model.parameters())`).
+$n_{in} \times n_{out} + n_{out}$ par couche `Linear`. Pour `medium_network.conf` : $(773 \cdot 256 + 256) + (256 \cdot 128 + 128) + (128 \cdot 3 + 3) = 198\,144 + 32\,896 + 387 = 231\,427$ (vérifiable avec `sum(p.size for p, _ in model.parameters())`).
 
 ## Entraînement
 

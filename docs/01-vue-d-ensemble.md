@@ -5,7 +5,7 @@
 Le sujet (`SPECIFICATIONS.MD`) demande de prédire **l'état d'une partie d'échecs** à partir d'une position décrite en notation FEN :
 
 ```
-rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3   →   Checkmate White
+rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3   →   Checkmate Black
 ```
 
 Trois niveaux de précision existent, selon le réseau chargé :
@@ -15,6 +15,8 @@ Trois niveaux de précision existent, selon le réseau chargé :
 | Basique | `Nothing`, `Check` | `configs/basic_network.conf` |
 | Intermédiaire | `Nothing`, `Check`, `Checkmate` | `configs/medium_network.conf` |
 | Complet | `Nothing`, `Check White`, `Check Black`, `Checkmate White`, `Checkmate Black` | `configs/full_network.conf` |
+
+**Convention de couleur** (exemple du sujet) : la couleur est celle du camp qui **donne** l'échec ou le mat. Dans l'exemple ci-dessus, les blancs ont le trait et sont mats : le label est `Checkmate Black`.
 
 **Contraintes majeures** :
 - **Interdiction** d'utiliser PyTorch, TensorFlow, Keras, scikit-learn… : le réseau, la rétropropagation et les optimiseurs sont **écrits à la main**. Seul **NumPy** est utilisé, pour le calcul matriciel.
@@ -37,7 +39,7 @@ flowchart TB
     G --> S
     A["my_torch_analyzer (analyzer/)"] --> S
     A --> M
-    A -.-> F["encodeur FEN (issue #2, à faire)"]
+    A --> F["analyzer/fen_encoder.py : FEN → 773 features"]
 ```
 
 1. **`mytorch/`** — une mini-librairie de réseaux de neurones, **générique** : elle ne sait rien des échecs. On pourrait l'utiliser pour n'importe quel problème de classification. C'est l'exigence « NN module » du sujet ([NN1] créer, [NN2] sauvegarder/charger, [NN3] entraîner).
@@ -64,12 +66,12 @@ Exemple avec `medium_network.conf` :
 
 ```
 position FEN
-   │  encodeur FEN (issue #2)
+   │  encodeur FEN (analyzer/fen_encoder.py)
    ▼
-vecteur de 789 nombres                       X : (1, 789)
+vecteur de 773 nombres                       X : (1, 773)
    │  Normalization   (X - moyenne) / écart-type
-   ▼                                          (1, 789)
-   │  Linear 789→256  X·W + b
+   ▼                                          (1, 773)
+   │  Linear 773→256  X·W + b
    ▼                                          (1, 256)
    │  ReLU            max(0, x)
    │  Dropout         (inactif en prédiction)
@@ -126,8 +128,8 @@ OurTorch/
 | Couches `Linear`, activations, `Dropout` | ✅ | #5 |
 | Losses, optimiseurs, `Sequential` | ✅ | #4 |
 | Normalisation, `.conf`, `.nn`, générateur | ✅ | #3 |
-| Encodeur FEN | ⏳ | #2 |
+| Encodeur FEN | ✅ | #2 |
 | Pipelines `--train` / `--predict` | ⏳ | #1 |
 | Benchmarks, réseaux pré-entraînés | ⏳ | #6 |
 
-Aujourd'hui, `./my_torch_analyzer` valide ses arguments mais n'entraîne ni ne prédit encore : il manque l'encodeur FEN (#2) et le branchement (#1).
+Aujourd'hui, `./my_torch_analyzer` valide ses arguments mais n'entraîne ni ne prédit encore : il manque le branchement des briques existantes (#1).

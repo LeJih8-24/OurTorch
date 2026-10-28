@@ -40,7 +40,7 @@ mytorch/
 | Terme | Signification dans ce projet |
 | :--- | :--- |
 | **Batch / mini-batch** | Paquet de positions traitées ensemble. Toutes les matrices sont de forme `(batch, features)` : une ligne = une position d'échecs. |
-| **Feature** | Un nombre décrivant la position (ex. « il y a un cavalier blanc en e4 » → 1.0). L'encodeur FEN (issue #2) produira 789 features par position. |
+| **Feature** | Un nombre décrivant la position (ex. « il y a un cavalier blanc en e4 » → 1.0). L'encodeur FEN (`analyzer/fen_encoder.py`) produit 773 features par position ([détails](fen_encoder.MD)). |
 | **Logits** | Sorties brutes du réseau, avant softmax. Un logit par classe. |
 | **One-hot** | Encodage d'un label : `[0, 1, 0]` pour la 2ᵉ classe. |
 | **Forward** | Calcul de la sortie à partir de l'entrée, couche après couche. |

@@ -19,7 +19,7 @@ OurTorch/
 ├── configs/                    # Blank network configurations (.conf, JSON)
 │   ├── basic_network.conf      # Nothing / Check
 │   ├── medium_network.conf     # Nothing / Check / Checkmate
-│   └── full_network.conf       # 5 classes, with the color of the concerned side
+│   └── full_network.conf       # 5 classes, with the color of the side giving check / mate
 │
 ├── mytorch/                    # Custom lightweight neural network library
 │   ├── __init__.py             # Public API (Sequential, losses, optimizers, config)
@@ -171,7 +171,7 @@ Defines the abstract base class **`Layer(ABC)`**, which forms the contract for a
 
 - `W` is initialized with `get_initializer(init)`, `b` with zeros. Both are `float32`.
 - Raises `ValueError` on non-positive dimensions, unknown initializer, or wrong input width.
-- Config: `{"type": "linear", "in": 789, "out": 256, "init": "he"}`.
+- Config: `{"type": "linear", "in": 773, "out": 256, "init": "he"}`.
 
 #### `mytorch/layers/activations.py`
 
@@ -293,7 +293,7 @@ A `.conf` file is a **JSON** document describing a blank network. JSON was chose
   "seed": 42,
   "layers": [
     {"type": "normalization"},
-    {"type": "linear", "in": 789, "out": 256, "init": "he"},
+    {"type": "linear", "in": 773, "out": 256, "init": "he"},
     {"type": "relu"},
     {"type": "dropout", "rate": 0.2},
     {"type": "linear", "in": 256, "out": 3, "init": "xavier"}
@@ -327,7 +327,7 @@ A `.conf` file is a **JSON** document describing a blank network. JSON was chose
 
 **`build_from_config(path_or_dict)`** validates, seeds NumPy, creates the layers, loss and optimizer, and returns a fresh `Sequential`. `build_from_config(model.get_config())` rebuilds an identical architecture (and identical initial weights when a seed is set).
 
-**Shipped configurations** (`configs/`): `basic_network.conf` (Nothing / Check), `medium_network.conf` (Nothing / Check / Checkmate) and `full_network.conf` (Nothing, Check White/Black, Checkmate White/Black). All start with `normalization` and use dropout + L2 weight decay against overfitting. Their input size **789** follows the FEN encoding planned in issue #2: if the encoder changes, update the first `linear.in` of each file (the `test_every_shipped_config_is_valid` test only checks consistency inside each file).
+**Shipped configurations** (`configs/`): `basic_network.conf` (Nothing / Check), `medium_network.conf` (Nothing / Check / Checkmate) and `full_network.conf` (Nothing, Check White/Black, Checkmate White/Black). All start with `normalization` and use dropout + L2 weight decay against overfitting. Their input size **773** is `INPUT_SIZE` of `analyzer/fen_encoder.py`: if the encoder changes, update the first `linear.in` of each file (`test_shipped_configs_match_the_fen_encoder` fails until then).
 
 **Reproducibility note for the pipeline (issue #1)**: `build_from_config` seeds the RNG before initializing the weights. When training a network **loaded** from a file, call `np.random.seed(model.seed)` before `fit()` to get the same shuffling and dropout masks.
 
