@@ -176,3 +176,4 @@ Run the unit test suite using `pytest` (or Python's built-in `unittest`):
   | [07 — Tests](./docs/07-tests.md) | Test map, gradient check, writing tests |
   | [08 — Soutenance](./docs/08-soutenance.md) | Likely questions and answers, compliance with the subject, known limits, demos |
   | [09 — Guide d'utilisation](./docs/09-guide-utilisation.md) | How to use `mytorch`: ready-to-run examples, recipes, common errors, API cheat sheet |
+  | [10 — Hyperparamètres](./docs/10-hyperparametres.md) | Every hyperparameter: role, range, chosen values and rationale, tuning method, results to fill in |

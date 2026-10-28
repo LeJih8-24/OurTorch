@@ -81,6 +81,7 @@ Le réseau *k* reçoit la graine `seed + k - 1` : les réseaux diffèrent entre 
 | [GEN1] Générateur depuis un fichier de configuration | Conseillé | ✅ | `my_torch_generator` |
 | [GEN2] Génération dans le code | Conseillé | ✅ | `Sequential(...)` |
 | Format de fichier justifié (topologie, poids, normalisation, encodage des sorties) | DEVRAIT | ✅ | [05](05-configuration-et-sauvegarde.md) |
+| Justification des hyperparamètres | DEVRAIT | ⚠️ | [10](10-hyperparametres.md) : justifications de principe écrites, mesures à compléter (§7) |
 | [OPT1] Lutte contre l'overfitting | **DOIT** | ✅ | Validation, early stopping, dropout, L2 |
 | [OPT1] Jeu de test, validation croisée | Exemple cité | ⚠️ | Test : à la main (guide 09 §4.2) ; validation croisée absente |
 | [OPT2] Optimisation des hyperparamètres (grid / random search, génétique…) | Attendu en soutenance | ❌ | Grid search écrite à la main dans le guide (09 §8.1), pas d'outil dans la librairie |

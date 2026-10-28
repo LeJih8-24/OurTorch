@@ -100,7 +100,7 @@ history = model.fit(X, y, **model.training_config)    # réglages du fichier
 | `medium_network.conf` | 3 | 256 → 128 | 0.2 | 40 |
 | `full_network.conf` | 5 | 512 → 256 | 0.3 | 50 (patience 7) |
 
-Toutes : normalisation en entrée, Adam (`lr=0.001`, `weight_decay=1e-4`), He pour les couches cachées, Xavier en sortie, graine 42. Plus il y a de classes, plus le réseau est large (et plus il est régularisé).
+Toutes : normalisation en entrée, Adam (`lr=0.001`, `weight_decay=1e-4`), He pour les couches cachées, Xavier en sortie, graine 42. Plus il y a de classes, plus le réseau est large (et plus il est régularisé). Justification de chaque valeur : [10 — Hyperparamètres](10-hyperparametres.md).
 
 ⚠️ **Taille d'entrée 773** : c'est `INPUT_SIZE` de l'encodeur FEN (`analyzer/fen_encoder.py` : 768 cases × pièces + trait + 4 droits de roque). Si l'encodeur change, il faut modifier le premier `linear.in` de chaque fichier. Le test `test_shipped_configs_match_the_fen_encoder` échoue tant que ce n'est pas fait.
 

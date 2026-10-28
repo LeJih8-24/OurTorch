@@ -17,6 +17,7 @@ Cette documentation explique **chaque élément du code** : ce qu'il fait, pourq
 | Lancer les tests, comprendre le gradient check, écrire un nouveau test | [07 — Tests](07-tests.md) |
 | Préparer la soutenance : questions probables, conformité au sujet, limites connues | [08 — Soutenance](08-soutenance.md) |
 | **Utiliser la librairie** : exemples prêts à copier, recettes, erreurs fréquentes, aide-mémoire | [09 — Guide d'utilisation](09-guide-utilisation.md) |
+| **Régler les hyperparamètres** : rôle, valeurs possibles, valeurs retenues et justification, méthode de réglage | [10 — Hyperparamètres](10-hyperparametres.md) |
 | Comprendre l'encodage des positions FEN | [Encodage FEN](fen_encoder.MD) |
 
 ## Carte de la librairie
