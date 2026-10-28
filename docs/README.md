@@ -15,7 +15,9 @@ Cette documentation explique **chaque élément du code** : ce qu'il fait, pourq
 | Écrire un `.conf`, sauvegarder / charger un `.nn`, utiliser `my_torch_generator` | [05 — Configuration et sauvegarde](05-configuration-et-sauvegarde.md) |
 | Comprendre `my_torch_analyzer`, la gestion d'erreurs et le `Makefile` | [06 — Analyseur et outils](06-analyseur-et-outils.md) |
 | Lancer les tests, comprendre le gradient check, écrire un nouveau test | [07 — Tests](07-tests.md) |
-| Préparer la soutenance : questions probables, réponses, limites connues | [08 — Soutenance](08-soutenance.md) |
+| Préparer la soutenance : questions probables, conformité au sujet, limites connues | [08 — Soutenance](08-soutenance.md) |
+| **Utiliser la librairie** : exemples prêts à copier, recettes, erreurs fréquentes, aide-mémoire | [09 — Guide d'utilisation](09-guide-utilisation.md) |
+| Comprendre l'encodage des positions FEN | [Encodage FEN](fen_encoder.MD) |
 
 ## Carte de la librairie
 

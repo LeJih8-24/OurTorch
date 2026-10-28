@@ -64,6 +64,35 @@ Lisible, modifiable à la main, sans dépendance, et identique à la sortie de `
 **« Pourquoi les réseaux générés sont-ils différents si la graine est fixée ? »**
 Le réseau *k* reçoit la graine `seed + k - 1` : les réseaux diffèrent entre eux, mais la même commande redonne toujours les mêmes fichiers.
 
+## Conformité de `mytorch` au sujet
+
+État au 28/10/2026, exigence par exigence (`SPECIFICATIONS.MD`) :
+
+| Exigence | Niveau | État | Où |
+| :--- | :--- | :--- | :--- |
+| Aucune librairie de réseaux de neurones, uniquement NumPy | DOIT | ✅ | Tout `mytorch/` |
+| Module importable | DOIT | ✅ | `import mytorch` |
+| [NN1] Créer un réseau | DOIT | ✅ | `build_from_config`, `Sequential` |
+| [NN2] Sauvegarder / charger | DOIT | ✅ | `save_network`, `load_network` |
+| [NN3] Entraîner | DOIT | ✅ | `Sequential.fit` |
+| Hyperparamètres : topologie, activations par couche, loss, taille de batch, époques | Liste indicative | ✅ | `.conf` |
+| Hyperparamètres : optimiseur (SGD, momentum, Adam), L2, dropout, initialisation, graine | Liste indicative | ✅ | `.conf` |
+| Hyperparamètres : **planning de learning rate** (decay, warmup) | Liste indicative | ❌ | Faisable à la main (`optimizer.lr`, guide 09 §8.3) |
+| [GEN1] Générateur depuis un fichier de configuration | Conseillé | ✅ | `my_torch_generator` |
+| [GEN2] Génération dans le code | Conseillé | ✅ | `Sequential(...)` |
+| Format de fichier justifié (topologie, poids, normalisation, encodage des sorties) | DEVRAIT | ✅ | [05](05-configuration-et-sauvegarde.md) |
+| [OPT1] Lutte contre l'overfitting | **DOIT** | ✅ | Validation, early stopping, dropout, L2 |
+| [OPT1] Jeu de test, validation croisée | Exemple cité | ⚠️ | Test : à la main (guide 09 §4.2) ; validation croisée absente |
+| [OPT2] Optimisation des hyperparamètres (grid / random search, génétique…) | Attendu en soutenance | ❌ | Grid search écrite à la main dans le guide (09 §8.1), pas d'outil dans la librairie |
+| [OPT3] Mini-batch, initialisations | Exemples cités | ✅ | `fit`, `initializers.py` |
+| [OPT3] MC Dropout | Exemple cité | ⚠️ | Couche prête, pas de méthode de prédiction dédiée |
+| Benchmarks avec graphiques | DEVRAIT | ❌ | `history` fournit les données ; script et graphiques : issue #6 |
+| [B2] Plusieurs courbes sur un graphique | Bonus | ❌ | Issue #6 |
+| [B3] Métriques multiples (précision, rappel, F1) | Bonus | ❌ | Calcul à la main dans le guide (09 §5) |
+| [B1] Parallélisme | Bonus | ❌ | — |
+
+**Bilan** : toutes les exigences **obligatoires** de la librairie sont remplies. Ce qui manque relève des attentes de soutenance ([OPT2], benchmarks) et des bonus.
+
 ## Limites connues et améliorations prévues
 
 Il vaut mieux les connaître et les annoncer avant qu'on les relève :
@@ -75,7 +104,8 @@ Il vaut mieux les connaître et les annoncer avant qu'on les relève :
 | Seule l'**accuracy** est mesurée | Elle masque les erreurs sur les classes rares | Matrice de confusion, précision, rappel, F1 par classe [B3] |
 | Pas de **planning de learning rate** | Réglage manuel du `lr` | Décroissance par paliers ou cosinus (`optimizer.lr` est déjà modifiable) |
 | MC Dropout non exploité côté modèle | Pas d'estimation d'incertitude | `Sequential.predict_mc(X, T)` |
-| Pas de **recherche d'hyperparamètres** [OPT2] | Exigé par le sujet | Grid search / random search / algorithme génétique |
+| Pas de **recherche d'hyperparamètres** [OPT2] | Attendue en soutenance | Grid search / random search / algorithme génétique dans la librairie |
+| Pas de **validation croisée** | Mesure de performance moins fiable sur un petit jeu de données | k-fold : entraîner k fois sur k découpages et moyenner |
 | État de l'optimiseur non sauvegardé | Un réentraînement repart avec Adam « à froid » | Sauvegarder `m`, `v`, `t` si besoin |
 | Le `weight_decay` s'applique aussi aux biais | Effet négligeable en pratique | Exclure les biais |
 
