@@ -10,7 +10,7 @@ A .conf file is a JSON document describing a blank network:
       "seed": 42,
       "layers": [
         {"type": "normalization"},
-        {"type": "linear", "in": 789, "out": 256, "init": "he"},
+        {"type": "linear", "in": 773, "out": 256, "init": "he"},
         {"type": "relu"},
         {"type": "dropout", "rate": 0.2},
         {"type": "linear", "in": 256, "out": 3, "init": "xavier"}
