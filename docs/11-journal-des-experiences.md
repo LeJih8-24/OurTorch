@@ -9,7 +9,7 @@ Chaque expérience doit être **reproductible** : le sujet impose de conserver l
 | # | Date | Réseau | Données d'entraînement | Accuracy (test) | Ce qu'on a appris |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | [01](#exp-01--premier-entraînement-du-réseau-complet) | 03/11/2026 | `full_network.conf` (5 classes) | 9 000 positions | **62,7 %** | Le pipeline fonctionne ; fort surapprentissage ; confusion échec / mat du même camp |
-| [02](#exp-02--réseaux-pré-entraînés-sur-tout-le-dataset) | 03/11/2026 | basic / medium / full | 578 415 positions (tout le dataset) | **88,9 % / 85,5 % / 85,1 %** | Plus de données → le surapprentissage disparaît ; couleurs jamais confondues ; échec / mat reste l'erreur principale ; le basic est trop petit |
+| [02](#exp-02--réseaux-pré-entraînés-sur-tout-le-dataset) | 03/11/2026 | basic / medium / full | 578 415 positions (tout le dataset) | **88,9 % / 85,5 % / 85,1 %** | Plus de données → le surapprentissage disparaît ; couleurs jamais confondues ; échec / mat reste l'erreur principale ; le basic est trop petit ; mats d'ouverture presque absents du dataset |
 
 **Repères** pour lire une accuracy : au hasard, 50 % (basic), 33 % (medium), 20 % (full). Toujours répondre `Nothing` donne 33,3 % sur le test de l'exp 01 et 41,5 % sur celui de l'exp 02.
 
@@ -226,6 +226,44 @@ Ces scores ont été **recalculés en passant par l'exécutable** (`my_torch_ana
 
 5. **Le mat du berger, premier exemple du sujet, est raté par le medium et le full.** C'est un mat **d'ouverture**, avec presque toutes les pièces encore sur l'échiquier, en 2 coups. Le full a bien vu l'échec et la bonne couleur (`Check Black`), mais pas le mat. Hypothèse à vérifier : ce type de mat très précoce est rare dans le dataset, dont les mats viennent surtout de milieux et de fins de partie.
 
+### Analyses complémentaires
+
+Mesurées après coup sur le même jeu de test (72 302 positions), avec les réseaux poussés.
+
+**Précision selon la source des positions** :
+
+| Fichiers | Positions de test | basic | medium | full |
+| :--- | :--- | :--- | :--- | :--- |
+| `10_pieces` | 21 996 | 86,6 % | **87,0 %** | **87,2 %** |
+| `20_pieces` | 30 107 | 89,4 % | 84,0 % | 83,2 % |
+| `many_pieces` | 20 199 | **90,6 %** | 86,3 % | 85,6 % |
+
+**Full, selon le nombre de pièces sur l'échiquier** :
+
+| Pièces | Positions | Accuracy |
+| :--- | :--- | :--- |
+| 2 – 8 | 17 694 | 87,4 % |
+| 9 – 12 | 12 131 | 85,2 % |
+| 13 – 20 | 26 926 | **82,6 %** |
+| 21 – 26 | 13 096 | 85,1 % |
+| 27 – 32 | 2 455 | 94,1 % (75 % de `Nothing` dans ce groupe : chiffre flatteur) |
+
+**Mats selon le moment de la partie** (full, mats du test uniquement) :
+
+| Numéro de coup | Mats | Accuracy |
+| :--- | :--- | :--- |
+| 1 – 20 | 637 | 80,1 % |
+| 21 – 40 | 7 528 | 81,0 % |
+| 41 – 60 | 5 886 | 86,8 % |
+| 61 et plus | 3 321 | **91,8 %** |
+
+**Les mats d'ouverture sont presque absents du dataset** : sur 173 719 mats, seuls **396 (0,23 %)** ont lieu avant le 10ᵉ coup, et seuls **1 087** ont 28 pièces ou plus sur l'échiquier.
+
+**Ce que ça montre** :
+- **L'hypothèse sur le mat du berger est confirmée.** Les mats précoces, avec beaucoup de pièces, sont très rares dans les données. Le réseau en a très peu vu, et il reconnaît d'autant moins bien un mat qu'il arrive tôt dans la partie (80 % avant le coup 20, contre 92 % après le coup 60).
+- **Les positions de milieu de partie (13 à 20 pièces) sont les plus difficiles** pour le full : il y a assez de pièces pour bloquer ou défendre, ce qui rend la frontière échec / mat subtile.
+- **Pour distinguer échec et mat** (medium, full), les fins de partie à 10 pièces sont les plus faciles. Pour **repérer un échec** (basic), ce sont au contraire les positions chargées.
+
 ### Décisions pour la suite
 
 | Piste | Pourquoi |
@@ -233,7 +271,7 @@ Ces scores ont été **recalculés en passant par l'exécutable** (`my_torch_ana
 | **Pousser ces trois réseaux** dans le dépôt | Le sujet l'exige ; ce sont nos meilleurs réseaux à ce jour |
 | **Agrandir le basic** (par ex. 512 → 256, comme le full) et **augmenter `epochs`** pour basic et medium | Le full ramené au basic fait 3,5 points de mieux ; basic et medium se sont arrêtés à la limite d'époques |
 | **Travailler la différence échec / mat** | Première source d'erreurs à tous les niveaux. Pistes : plus de capacité, plus d'époques, réglage du learning rate (planning), vérifier la répartition des mats dans le dataset |
-| **Vérifier les mats d'ouverture** dans le dataset (mat du berger, mat du lion…) | Le premier exemple du sujet est raté |
+| **Ajouter des mats d'ouverture au dataset** (mat du berger, mat du lion…) | Vérifié : seuls 0,23 % des mats ont lieu avant le 10ᵉ coup, et le premier exemple du sujet est raté |
 | Grid search sur `lr`, dropout, `weight_decay` | Les configs n'ont pas encore été réglées ; chaque essai complet coûte 20 min à 2 h, donc faire la recherche sur une partie du dataset |
 
 ---
