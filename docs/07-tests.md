@@ -9,7 +9,7 @@
 .venv/bin/python3 -m unittest discover -s tests -v  # sans pytest
 ```
 
-Les tests sont écrits avec `unittest` (bibliothèque standard) et se lancent aussi avec `pytest`. 115 tests au total, environ 4 secondes.
+Les tests sont écrits avec `unittest` (bibliothèque standard) et se lancent aussi avec `pytest`. 151 tests au total, environ 4 secondes.
 
 ## Ce que couvre chaque fichier
 
@@ -25,6 +25,7 @@ Les tests sont écrits avec `unittest` (bibliothèque standard) et se lancent au
 | `test_config.py` | 12 | Valeurs par défaut, ~30 configurations invalides, message d'erreur précis, graine, aller-retour `get_config` → `build_from_config`, configs fournies valides |
 | `test_serialization.py` | 12 | Aller-retour save/load avec prédictions **identiques**, réseau vierge, écrasement, permissions, métadonnées, fichiers corrompus / tronqués / étrangers, pickle refusé |
 | `test_generator.py` | 7 | Le générateur lancé **comme le vrai exécutable** : fichiers créés, graines, noms répétés, `--help`, codes 84 sans aucun fichier écrit |
+| `test_model_selection.py` | 13 | Découpage en blocs (chaque exemple validé une fois, tailles équilibrées, proportions en stratifié, reproductibilité), validation croisée (scores, réglages remplacés, réseau et normalisation neufs à chaque bloc, logs sur stderr, erreurs) |
 
 `tests/gradcheck.py` n'est pas un fichier de tests mais un **outil** partagé.
 

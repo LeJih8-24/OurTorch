@@ -39,10 +39,13 @@ $n_{in} \times n_{out} + n_{out}$ par couche `Linear`. Pour `medium_network.conf
 Il adapte le pas de chaque poids en divisant par la moyenne des carrés de ses gradients, et sa correction de biais le rend efficace dès les premiers pas. Il converge vite sans réglage fin du learning rate. SGD + momentum est disponible pour comparer. Voir [04 §2](04-entrainement.md#2-les-optimiseurs-optimizerspy).
 
 **« Comment évitez-vous l'overfitting ? » [OPT1]**
-Trois mécanismes : (1) **séparation entraînement / validation** et **early stopping** avec restauration des meilleurs poids, (2) **Dropout**, (3) **régularisation L2** (`weight_decay`). On le démontre avec les courbes `train_loss` / `val_loss` du `history` : sans régularisation, la validation remonte ; avec, elle suit l'entraînement. (Graphiques à produire dans #6.)
+Trois mécanismes : (1) **séparation entraînement / validation** et **early stopping** avec restauration des meilleurs poids, (2) **Dropout**, (3) **régularisation L2** (`weight_decay`). On le démontre avec les courbes `train_loss` / `val_loss` du `history` : sans régularisation, la validation remonte ; avec, elle suit l'entraînement. (Graphiques à produire dans #6.) Pour **mesurer** la généralisation de façon fiable, on utilise la **validation croisée stratifiée** (`cross_validate`).
 
 **« Pourquoi normaliser les entrées ? »**
 Pour que toutes les features aient la même échelle : sinon les grandes features dominent les gradients. Démontré par un test : SGD diverge (NaN) sans normalisation et atteint 92 % avec. Les statistiques sont calculées **sur l'entraînement uniquement** (pas de fuite d'information depuis la validation) et sauvegardées dans le `.nn`. Voir [03 — Normalization](03-couches.md#normalization-normalizationpy).
+
+**« Pourquoi une validation croisée ? »**
+Un seul découpage entraînement / validation donne un score qui dépend du hasard du découpage. La validation croisée entraîne k réseaux neufs, chacun validé sur un bloc différent : la moyenne des k scores est plus fiable, l'écart-type mesure la stabilité. Elle est **stratifiée** pour que chaque bloc contienne des mats malgré leur rareté, et chaque bloc recalcule sa normalisation sur ses seules données d'entraînement (pas de fuite). Voir [04 §4](04-entrainement.md#4-la-validation-croisée-model_selectionpy).
 
 **« Pourquoi des mini-batchs ? » [OPT3]**
 Un compromis : plus rapide et plus stable qu'un exemple à la fois, moins coûteux en mémoire que tout le jeu d'un coup. Le bruit des mini-batchs aide aussi à sortir des mauvais minima locaux.
@@ -83,7 +86,8 @@ Le réseau *k* reçoit la graine `seed + k - 1` : les réseaux diffèrent entre 
 | Format de fichier justifié (topologie, poids, normalisation, encodage des sorties) | DEVRAIT | ✅ | [05](05-configuration-et-sauvegarde.md) |
 | Justification des hyperparamètres | DEVRAIT | ⚠️ | [10](10-hyperparametres.md) : justifications de principe écrites, mesures à compléter (§7) |
 | [OPT1] Lutte contre l'overfitting | **DOIT** | ✅ | Validation, early stopping, dropout, L2 |
-| [OPT1] Jeu de test, validation croisée | Exemple cité | ⚠️ | Test : à la main (guide 09 §4.2) ; validation croisée absente |
+| [OPT1] Validation croisée (k-fold, stratifiée) | Exemple cité | ✅ | `cross_validate`, `kfold_indices` |
+| [OPT1] Jeu de test séparé | Exemple cité | ⚠️ | À faire à la main (guide 09 §4.2) |
 | [OPT2] Optimisation des hyperparamètres (grid / random search, génétique…) | Attendu en soutenance | ❌ | Grid search écrite à la main dans le guide (09 §8.1), pas d'outil dans la librairie |
 | [OPT3] Mini-batch, initialisations | Exemples cités | ✅ | `fit`, `initializers.py` |
 | [OPT3] MC Dropout | Exemple cité | ⚠️ | Couche prête, pas de méthode de prédiction dédiée |
@@ -106,7 +110,6 @@ Il vaut mieux les connaître et les annoncer avant qu'on les relève :
 | Pas de **planning de learning rate** | Réglage manuel du `lr` | Décroissance par paliers ou cosinus (`optimizer.lr` est déjà modifiable) |
 | MC Dropout non exploité côté modèle | Pas d'estimation d'incertitude | `Sequential.predict_mc(X, T)` |
 | Pas de **recherche d'hyperparamètres** [OPT2] | Attendue en soutenance | Grid search / random search / algorithme génétique dans la librairie |
-| Pas de **validation croisée** | Mesure de performance moins fiable sur un petit jeu de données | k-fold : entraîner k fois sur k découpages et moyenner |
 | État de l'optimiseur non sauvegardé | Un réentraînement repart avec Adam « à froid » | Sauvegarder `m`, `v`, `t` si besoin |
 | Le `weight_decay` s'applique aussi aux biais | Effet négligeable en pratique | Exclure les biais |
 

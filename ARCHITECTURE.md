@@ -28,6 +28,7 @@ OurTorch/
 │   ├── losses.py               # MSELoss, SoftmaxCrossEntropyLoss, get_loss()
 │   ├── optimizers.py           # SGD (momentum), Adam, get_optimizer()
 │   ├── model.py                # `Sequential` model: training loop, early stopping, predict
+│   ├── model_selection.py      # k-fold cross-validation: kfold_indices(), cross_validate()
 │   ├── serialization.py        # .nn files: save_network(), load_network(), read_metadata()
 │   └── layers/                 # Neural network layers package
 │       ├── __init__.py         # Exposes Layer and every concrete layer
@@ -57,6 +58,7 @@ OurTorch/
     ├── test_initializers.py    # Unit tests for initializers and base Layer
     ├── test_layers.py          # Gradient checks and behaviour tests for every layer
     ├── test_losses.py          # Loss values, stability and gradient checks
+    ├── test_model_selection.py # k-fold splitting, stratification, cross_validate()
     ├── test_normalization.py   # Normalization layer, state_dict, integration in fit()
     ├── test_optimizers.py      # Update rules, convergence and config factory
     ├── test_serialization.py   # .nn round trip, corrupted / foreign / truncated files
@@ -371,6 +373,13 @@ Creates blank (untrained) networks from `.conf` files **[GEN1]**.
 - **All arguments and configurations are validated before any file is written**: an error never leaves half of the networks generated.
 - `--help` prints the usage. Odd number of arguments, `nb` not a positive integer, missing or invalid config, or missing NumPy → message on stderr, exit code **84**.
 - Generated `.nn` files are git-ignored, except `my_torch_network*.nn` (the pre-trained networks that must be pushed).
+
+#### `mytorch/model_selection.py` — k-fold cross-validation
+Gives a more reliable generalization estimate than a single split, to compare configurations ([OPT1], [OPT2]).
+
+- **`kfold_indices(n_samples, k=5, shuffle=True, stratify=None, seed=None)`** → `k` pairs `(train_idx, val_idx)`. Every sample is validated exactly once, fold sizes differ by at most one. `stratify` (one-hot or class indices) splits each class separately so every fold keeps the class proportions (rare checkmates are spread over all folds). Shuffling uses `default_rng(seed)`, or NumPy's global RNG without a seed.
+- **`cross_validate(model_source, X, y, k=5, stratified=True, seed=None, verbose=False, **fit_overrides)`**: `model_source` is a `.conf` path, a config dict or a factory returning a new `Sequential`. For each fold, a **fresh** network is built (no weights or normalization statistics leak between folds), trained on the other folds with `training_config` updated by `fit_overrides`, and scored on the held-out fold. Early stopping uses the `val_split` taken inside the training folds, so the held-out score is not biased by it. Returns `fold_loss`, `fold_acc`, `mean_loss`, `std_loss`, `mean_acc`, `std_acc`, `best_epochs`, `histories`, `folds`. Logs go to stderr.
+- No trained network is returned: once a configuration is chosen, train it one last time on all the data except the test set.
 
 ---
 
