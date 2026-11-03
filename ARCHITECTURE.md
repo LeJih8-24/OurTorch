@@ -11,6 +11,9 @@ This document explains the directory layout, architectural design, and core modu
 ```text
 OurTorch/
 ├── Makefile                    # Build system for my_torch_analyzer & my_torch_generator
+├── my_torch_network_basic.nn   # Pre-trained networks evaluated by the autograder
+├── my_torch_network_medium.nn  #   (trained by scripts/train_networks.py, see docs/11)
+├── my_torch_network_full.nn
 ├── README.md                   # General project overview and usage guide
 ├── ARCHITECTURE.md             # Detailed structure and technical explanations
 ├── docs/                       # Complete documentation in French (one chapter per topic)
@@ -49,6 +52,7 @@ OurTorch/
 ├── scripts/                    # Standalone scripts and tools
 │   ├── generator.py            # my_torch_generator: blank .nn networks from .conf files
 │   ├── evaluate.py             # accuracy, per-class metrics, confusion matrix of predictions
+│   ├── train_networks.py       # trains the pre-trained my_torch_network_*.nn on the dataset
 │   └── experiments/            # one reproducible script per experiment (see docs/11)
 │
 └── tests/                      # Unit test suite

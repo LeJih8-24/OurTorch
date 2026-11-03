@@ -102,6 +102,21 @@ Le réseau *k* reçoit la graine `seed + k - 1` : les réseaux diffèrent entre 
 
 **Bilan** : toutes les exigences **obligatoires** de la librairie sont remplies. La grid search et la validation croisée couvrent [OPT1] et [OPT2]. Ce qui manque : les mesures réelles (benchmarks, résultats de la recherche) et des bonus.
 
+## Conformité du rendu
+
+| Exigence du sujet | Niveau | État | Où |
+| :--- | :--- | :--- | :--- |
+| Réseau pré-entraîné `my_torch_network*`, chargeable par l'analyseur | DOIT | ✅ | `my_torch_network_{basic,medium,full}.nn` à la racine |
+| Scripts d'entraînement conservés (reproduire l'entraînement) | DOIT | ✅ | `scripts/train_networks.py` ([exp 02](11-journal-des-experiences.md#exp-02--réseaux-pré-entraînés-sur-tout-le-dataset)) |
+| Jeux de données conservés | DOIT | ✅ | `dataset/` (723 019 positions) |
+| `my_torch_analyzer` : `--help`, `--train`, `--predict`, erreurs → 84 | DOIT | ✅ | [06](06-analyseur-et-outils.md) |
+| README | DOIT | ✅ | `README.md` |
+| Benchmarks **avec graphiques** | DEVRAIT | ❌ | Données disponibles (`*_history.json`, rapports), graphiques à produire (#6) |
+| NumPy disponible sur « the dump » | — | ⚠️ | À vérifier sur l'environnement de correction |
+
+**« Quelle est la précision de vos réseaux ? »**
+Sur 72 302 positions de test jamais vues : 88,9 % (basic, 2 classes), 85,5 % (medium, 3 classes), 85,1 % (full, 5 classes). L'erreur principale est la différence entre échec et mat ; les couleurs ne sont jamais confondues. Détails et matrices de confusion : [exp 02](11-journal-des-experiences.md#exp-02--réseaux-pré-entraînés-sur-tout-le-dataset).
+
 ## Limites connues et améliorations prévues
 
 Il vaut mieux les connaître et les annoncer avant qu'on les relève :

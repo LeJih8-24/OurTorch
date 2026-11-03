@@ -315,7 +315,7 @@ La **grid search est intégrée** à la librairie : `grid_search(config, grille,
 
 Section à remplir avec les mesures de la recherche d'hyperparamètres et des benchmarks (issue #6). Ce sont **ces résultats** qui justifieront les valeurs finales en soutenance.
 
-Le détail de chaque entraînement (protocole, courbes, matrices de confusion, analyse) est tenu dans le [journal des expériences](11-journal-des-experiences.md). Première référence : [exp 01](11-journal-des-experiences.md#exp-01--premier-entraînement-du-réseau-complet), `full_network.conf` sans réglage, 9 000 positions d'entraînement → **62,7 %** sur 3 000 positions de test, avec un fort surapprentissage (minimum de `val_loss` dès l'époque 4).
+Le détail de chaque entraînement (protocole, courbes, matrices de confusion, analyse) est tenu dans le [journal des expériences](11-journal-des-experiences.md). Première référence : [exp 01](11-journal-des-experiences.md#exp-01--premier-entraînement-du-réseau-complet), `full_network.conf` sans réglage, 9 000 positions d'entraînement → **62,7 %** sur 3 000 positions de test, avec un fort surapprentissage (minimum de `val_loss` dès l'époque 4). Avec tout le dataset ([exp 02](11-journal-des-experiences.md#exp-02--réseaux-pré-entraînés-sur-tout-le-dataset)), les mêmes configs donnent **88,9 % / 85,5 % / 85,1 %** (basic / medium / full) et le surapprentissage disparaît presque ; basic et medium s'arrêtent à leur limite d'époques, et le basic semble trop petit (le full ramené au niveau basic fait 92,4 %).
 
 **Protocole** (à respecter pour que les comparaisons soient valables ; `grid_search` applique automatiquement les trois premiers points) :
 - même jeu de données, même découpage entraînement / validation / test pour tous les essais ;

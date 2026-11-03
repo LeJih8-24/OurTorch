@@ -9,14 +9,16 @@ Chaque expérience doit être **reproductible** : le sujet impose de conserver l
 | # | Date | Réseau | Données d'entraînement | Accuracy (test) | Ce qu'on a appris |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | [01](#exp-01--premier-entraînement-du-réseau-complet) | 03/11/2026 | `full_network.conf` (5 classes) | 9 000 positions | **62,7 %** | Le pipeline fonctionne ; fort surapprentissage ; confusion échec / mat du même camp |
+| [02](#exp-02--réseaux-pré-entraînés-sur-tout-le-dataset) | 03/11/2026 | basic / medium / full | 578 415 positions (tout le dataset) | **88,9 % / 85,5 % / 85,1 %** | Plus de données → le surapprentissage disparaît ; couleurs jamais confondues ; échec / mat reste l'erreur principale ; le basic est trop petit |
 
-**Repères** pour lire une accuracy sur 5 classes : répondre au hasard donne 20 % ; répondre toujours `Nothing` (la classe la plus fréquente du test) donne 33,3 %.
+**Repères** pour lire une accuracy : au hasard, 50 % (basic), 33 % (medium), 20 % (full). Toujours répondre `Nothing` donne 33,3 % sur le test de l'exp 01 et 41,5 % sur celui de l'exp 02.
 
 ## Outils
 
 | Outil | Rôle |
 | :--- | :--- |
 | `scripts/experiments/expNN_*.sh` | Relance une expérience de bout en bout ; sorties dans `experiments/output/expNN/` (ignoré par git) |
+| `scripts/train_networks.py` | Entraîne les réseaux pré-entraînés `my_torch_network_*.nn` sur le dataset (exp 02) |
 | `scripts/evaluate.py NETWORK PREDICTIONS CHESSFILE` | Compare les prédictions aux labels attendus : accuracy, précision / rappel / F1 par classe, matrice de confusion. Les labels sont adaptés aux classes du réseau, comme en `--train`. |
 
 ```bash
@@ -120,6 +122,119 @@ Arrêt après l'époque 11 (7 époques sans amélioration de `val_loss`), poids 
 | **Comparer avec un réseau plus petit** (`medium` en largeur, 256 → 128) | Moins de paramètres → moins de mémorisation | `grid_search` avec la clé `layers` |
 | **Mesurer par validation croisée** | Rendre les comparaisons fiables | `cross_validate`, ou `grid_search(k=5)` |
 | Suivre le **rappel de `Check` et `Checkmate`** en plus de l'accuracy | Ce sont les erreurs principales | `scripts/evaluate.py` |
+
+---
+
+## Exp 02 — Réseaux pré-entraînés sur tout le dataset
+
+**Date** : 03/11/2026 · **Script** : [`scripts/train_networks.py`](../scripts/train_networks.py) · **Durée** : 3 h 32 au total (basic 18 min, medium 70 min, full 2 h 04), 2 Go de RAM au maximum
+
+### Objectif
+
+Produire les réseaux **pré-entraînés exigés par le sujet** (`my_torch_network_basic.nn`, `_medium.nn`, `_full.nn`), évalués par l'autograder, et vérifier si l'exp 01 avait raison : le surapprentissage venait-il du **manque de données** ?
+
+### Protocole
+
+| Élément | Valeur |
+| :--- | :--- |
+| Réseaux | Les trois `.conf` fournis, **sans modification** (mêmes hyperparamètres qu'à l'exp 01 pour le full) |
+| Données | **Tout le dataset** : 723 019 positions, 9 fichiers (`check`, `checkmate`, `nothing` × 10 pièces, 20 pièces, beaucoup de pièces) |
+| Découpage | Stratifié sur les 5 labels, graine 42, **identique pour les trois réseaux** : 578 415 entraînement (80 %), 72 302 validation (10 %, early stopping), 72 302 **test** (10 %, jamais vu) |
+| Labels | Adaptés à chaque réseau (`encode_labels`) : `Checkmate White` → `Checkmate` (medium) → `Check` (basic) |
+| Commande | `python3 scripts/train_networks.py` (tout le dataset, les trois niveaux) |
+
+Le script stocke les positions en `uint8` (560 Mo au lieu de 2,2 Go en `float32`). Pour tenir en mémoire, `Normalization.adapt` calcule maintenant ses statistiques par paquets ([03](03-couches.md#normalization-normalizationpy)).
+
+### Résultats
+
+| Réseau | Classes | Paramètres | Accuracy **test** | Meilleure époque | Arrêt |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `my_torch_network_basic.nn` | 2 | 99 330 | **88,9 %** | 27 | limite de 30 époques |
+| `my_torch_network_medium.nn` | 3 | 231 427 | **85,5 %** | 38 | limite de 40 époques |
+| `my_torch_network_full.nn` | 5 | 528 901 | **85,1 %** | 38 | early stopping (époque 45) |
+
+Ces scores ont été **recalculés en passant par l'exécutable** (`my_torch_analyzer --predict` sur les 72 302 positions de test, puis `scripts/evaluate.py`) : mêmes chiffres. La prédiction des 72 302 positions prend 2,5 s (basic) à 4,6 s (full).
+
+**Progression du full par rapport à l'exp 01** (même réseau, même config) : **62,7 % → 85,1 %**.
+
+**Courbes d'apprentissage** (extraits de `experiments/output/train_networks/<niveau>_history.json`) :
+
+| Époque | basic `val_acc` | medium `val_acc` | full `val_acc` |
+| :--- | :--- | :--- | :--- |
+| 1 | 78,8 % | 69,0 % | 70,4 % |
+| 5 | 85,9 % | 80,1 % | 80,4 % |
+| 10 | 87,3 % | 83,2 % | 82,9 % |
+| 20 | 88,6 % | 85,0 % | 84,3 % |
+| 30 | 88,9 % | 85,6 % | 84,7 % |
+| 38 | — | **86,0 %** | **85,3 %** |
+
+Écart entraînement / validation à la meilleure époque : basic 91,4 % / 89,1 %, medium 89,2 % / 86,0 %, full 88,4 % / 85,3 %.
+
+**Métriques par classe sur le test** :
+
+| Réseau | Classe | Précision | Rappel | F1 |
+| :--- | :--- | :--- | :--- | :--- |
+| basic | Nothing | 0.887 | 0.838 | 0.862 |
+| basic | Check | 0.889 | 0.925 | 0.907 |
+| medium | Nothing | 0.928 | 0.891 | 0.909 |
+| medium | Check | 0.794 | 0.817 | 0.805 |
+| medium | Checkmate | 0.825 | 0.849 | 0.837 |
+| full | Nothing | 0.918 | 0.898 | 0.908 |
+| full | Check White | 0.809 | 0.792 | 0.800 |
+| full | Check Black | 0.785 | 0.797 | 0.791 |
+| full | Checkmate White | 0.807 | 0.863 | 0.834 |
+| full | Checkmate Black | 0.824 | 0.834 | 0.829 |
+
+**Matrice de confusion du full** (test, lignes = attendu, colonnes = prédit) :
+
+| attendu ↓ / prédit → | Nothing | Check White | Check Black | Checkmate White | Checkmate Black |
+| :--- | ---: | ---: | ---: | ---: | ---: |
+| **Nothing** | **26 931** | 1 350 | 1 274 | 254 | 191 |
+| **Check White** | 1 127 | **10 738** | 0 | 1 694 | 0 |
+| **Check Black** | 1 076 | 0 | **9 068** | 0 | 1 227 |
+| **Checkmate White** | 103 | 1 186 | 0 | **8 141** | 0 |
+| **Checkmate Black** | 106 | 0 | 1 211 | 0 | **6 625** |
+
+**Positions d'exemple du sujet** (`my_torch_analyzer --predict` sur les 5 positions du PDF) :
+
+| Position | Attendu (full) | basic | medium | full |
+| :--- | :--- | :--- | :--- | :--- |
+| Mat du berger (`rnb1kbnr/…/RNBQKBNR w KQkq - 1 3`) | Checkmate Black | ✅ Check | ❌ Nothing | ❌ Check Black |
+| Position de départ | Nothing | ✅ | ✅ | ✅ |
+| Après 1. d4 | Nothing | ✅ | ✅ | ✅ |
+| Dame en h5, roi noir en échec | Check White | ✅ Check | ✅ Check | ✅ |
+| Rois seuls (`8/8/8/8/8/8/8/k1K5`) | Nothing | ✅ | ✅ | ✅ |
+
+**Le full sait-il répondre aux niveaux plus simples ?** En ramenant ses réponses aux classes moins détaillées (`Checkmate White` → `Checkmate` → `Check`) :
+
+| Tâche | Réseau dédié | Full ramené à cette tâche |
+| :--- | :--- | :--- |
+| basic (2 classes) | 88,9 % | **92,4 %** |
+| medium (3 classes) | **85,5 %** | 85,1 % |
+
+### Analyse
+
+1. **Le manque de données était bien la cause principale.** Avec 64 fois plus de positions d'entraînement qu'à l'exp 01, le full passe de 62,7 % à 85,1 %, et l'écart entraînement / validation tombe d'environ 37 points à environ 3 points : **le surapprentissage a presque disparu**.
+
+2. **Les couleurs sont parfaitement séparées** : le full ne confond **jamais** un échec ou un mat blanc avec un noir (tous les « 0 » de la matrice). Toutes ses erreurs sont de deux types :
+   - **échec ↔ mat du même camp** (1 694 + 1 186 côté blancs, 1 227 + 1 211 côté noirs) : c'est toujours l'erreur principale, comme à l'exp 01 ;
+   - **rien ↔ échec** : environ 2 600 `Nothing` pris pour des échecs, environ 2 200 échecs manqués.
+
+3. **Le basic et le medium n'avaient pas fini d'apprendre** : ils se sont arrêtés à leur limite d'époques (30 et 40) alors que leur meilleure époque était la 27 et la 38, avec une `val_loss` qui baissait encore très lentement. Le full, lui, s'est arrêté par early stopping : il a atteint son plateau.
+
+4. **Le full ramené au niveau basic (92,4 %) bat le basic dédié (88,9 %).** Le full a plus de capacité (512 → 256 neurones contre 128) et apprend une tâche plus riche, ce qui l'aide aussi à repérer les échecs. Le basic est donc probablement **trop petit et pas assez entraîné**. Au niveau medium, les deux se valent (85,5 % contre 85,1 %).
+
+5. **Le mat du berger, premier exemple du sujet, est raté par le medium et le full.** C'est un mat **d'ouverture**, avec presque toutes les pièces encore sur l'échiquier, en 2 coups. Le full a bien vu l'échec et la bonne couleur (`Check Black`), mais pas le mat. Hypothèse à vérifier : ce type de mat très précoce est rare dans le dataset, dont les mats viennent surtout de milieux et de fins de partie.
+
+### Décisions pour la suite
+
+| Piste | Pourquoi |
+| :--- | :--- |
+| **Pousser ces trois réseaux** dans le dépôt | Le sujet l'exige ; ce sont nos meilleurs réseaux à ce jour |
+| **Agrandir le basic** (par ex. 512 → 256, comme le full) et **augmenter `epochs`** pour basic et medium | Le full ramené au basic fait 3,5 points de mieux ; basic et medium se sont arrêtés à la limite d'époques |
+| **Travailler la différence échec / mat** | Première source d'erreurs à tous les niveaux. Pistes : plus de capacité, plus d'époques, réglage du learning rate (planning), vérifier la répartition des mats dans le dataset |
+| **Vérifier les mats d'ouverture** dans le dataset (mat du berger, mat du lion…) | Le premier exemple du sujet est raté |
+| Grid search sur `lr`, dropout, `weight_decay` | Les configs n'ont pas encore été réglées ; chaque essai complet coûte 20 min à 2 h, donc faire la recherche sur une partie du dataset |
 
 ---
 

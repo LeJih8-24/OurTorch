@@ -27,7 +27,8 @@ The project is split into three main components:
 | Hyperparameter grid search [OPT2] | ✅ Done | — |
 | FEN parser & feature encoding (773 features) | ✅ Done | #2 |
 | `--train` / `--predict` pipelines | ✅ Done | #1 |
-| Benchmarks, pre-trained networks, docs | ⏳ To do | #6 |
+| Pre-trained networks `my_torch_network_{basic,medium,full}.nn` + training script | ✅ Done | #6 |
+| Benchmarks with plots | ⏳ To do | #6 |
 
 ### Building a network from a `.conf` file
 
@@ -93,6 +94,28 @@ make fclean
 # Rebuild everything from scratch
 make re
 ```
+
+---
+
+## Pre-trained Networks
+
+The three networks evaluated by the autograder are at the repository root:
+
+| File | Outputs | Test accuracy |
+| :--- | :--- | :--- |
+| `my_torch_network_basic.nn` | `Check`, `Nothing` | 88.9 % |
+| `my_torch_network_medium.nn` | `Checkmate`, `Check`, `Nothing` | 85.5 % |
+| `my_torch_network_full.nn` | `Checkmate White/Black`, `Check White/Black`, `Nothing` | 85.1 % |
+
+They were trained from `configs/<level>_network.conf` on the whole `dataset/` (723 019 positions, stratified 80 / 10 / 10 train / validation / test split, seed 42). Accuracies are measured on the 72 302 test positions, never used for training. To reproduce them (~3.5 hours, 2 GB of RAM):
+
+```bash
+source .venv/bin/activate
+python3 scripts/train_networks.py                 # all levels, whole dataset
+python3 scripts/train_networks.py --levels basic  # a single level
+```
+
+Results, learning curves and analysis: [docs/11-journal-des-experiences.md](./docs/11-journal-des-experiences.md) (French).
 
 ---
 
