@@ -34,6 +34,7 @@ mytorch/
 ├── losses.py            → MSE, cross-entropy : mesurer l'erreur          (04)
 ├── optimizers.py        → SGD, Adam : corriger les poids                 (04)
 ├── model.py             → Sequential : assembler et entraîner            (04)
+├── model_selection.py   → validation croisée (k-fold)                    (04)
 ├── config.py            → fichiers .conf (JSON)                          (05)
 └── serialization.py     → fichiers .nn (sauvegarde / chargement)         (05)
 ```

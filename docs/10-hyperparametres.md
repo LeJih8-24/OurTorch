@@ -233,7 +233,7 @@ Le plus important des hyperparamètres d'entraînement.
 
 **Retenu** : `0.15`, valeur usuelle (souvent avec 15 % de test en plus, voir [09 §4.2](09-guide-utilisation.md#42-séparer-entraînement--validation--test)).
 
-**Limite actuelle** : le découpage est aléatoire, pas **stratifié** (il ne garantit pas la même proportion de chaque classe dans la validation). Avec un grand jeu de données, l'écart est faible.
+**Limite actuelle** : dans `fit()`, le découpage est aléatoire, pas **stratifié** (il ne garantit pas la même proportion de chaque classe dans la validation). Avec un grand jeu de données, l'écart est faible. Pour comparer des configurations, préférer la **validation croisée stratifiée** (`cross_validate`, [04 §4](04-entrainement.md#4-la-validation-croisée-model_selectionpy)), qui n'a pas ce problème.
 
 ### 4.14 Graine (`seed`)
 
@@ -249,7 +249,7 @@ Le plus important des hyperparamètres d'entraînement.
 
 ### 5.1 Dans quel ordre ?
 
-Changer **un seul** hyperparamètre à la fois, et toujours juger sur la **validation** (jamais sur le test).
+Changer **un seul** hyperparamètre à la fois, et toujours juger sur la **validation** (jamais sur le test). Pour des comparaisons fiables, juger sur la moyenne d'une **validation croisée** (`cross_validate`) plutôt que sur un seul découpage : un écart entre deux réglages plus petit que l'écart-type des blocs n'est pas significatif.
 
 1. **Vérifier que le réseau peut apprendre** : sur un petit sous-ensemble (quelques centaines de positions), sans dropout ni L2, la loss d'entraînement doit tomber près de 0. Sinon, il y a un problème de données ou de code, pas d'hyperparamètres.
 2. **Learning rate** : tester 0.0003 / 0.001 / 0.003 / 0.01 avec la config de base. Garder le meilleur.
@@ -304,7 +304,7 @@ Une grid search écrite à la main est donnée dans le [guide §8.1](09-guide-ut
 | :--- | :--- |
 | Planning de learning rate (decay, warmup) | Pas dans `fit()` ; possible avec une boucle manuelle |
 | Poids des classes dans la loss | Absent : les classes rares pèsent peu |
-| Découpage de validation stratifié | Absent |
+| Découpage de validation stratifié | Disponible en validation croisée (`cross_validate`, `kfold_indices(stratify=...)`), pas dans le `val_split` de `fit()` |
 | Métrique surveillée par l'early stopping | Toujours `val_loss` (pas `val_acc`) ; pas de seuil minimal d'amélioration |
 | Gradient clipping | Absent |
 | Activation différente pour la sortie | La sortie est toujours des logits passés à la softmax de la loss |
@@ -318,7 +318,7 @@ Section à remplir avec les mesures de la recherche d'hyperparamètres et des be
 **Protocole** (à respecter pour que les comparaisons soient valables) :
 - même jeu de données, même découpage entraînement / validation / test pour tous les essais ;
 - une seule valeur modifiée par rapport à la config de référence ;
-- 3 graines par essai, on reporte la moyenne ;
+- 3 graines par essai, on reporte la moyenne, **ou** une validation croisée stratifiée (`cross_validate`, `k=5`) : on reporte `mean_loss ± std_loss` ;
 - choix sur la **validation**, score final sur le **test** une seule fois.
 
 **Jeu de données utilisé** : _à compléter (nombre de positions, répartition des classes, script de génération)._

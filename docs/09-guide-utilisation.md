@@ -249,6 +249,24 @@ save_network(model, "mon_reseau.nn")
 
 La normalisation garde ses statistiques d'origine. L'optimiseur repart de zéro : son état n'est pas sauvegardé.
 
+### 4.5 Évaluer une configuration par validation croisée
+
+Un seul découpage donne un score qui dépend du hasard. `cross_validate` entraîne `k` réseaux neufs, chacun validé sur un bloc différent, et renvoie la moyenne et l'écart-type ([détails](04-entrainement.md#4-la-validation-croisée-model_selectionpy)) :
+
+```python
+from mytorch import cross_validate
+
+result = cross_validate("configs/medium_network.conf", X_tr, y_tr, k=5, seed=0, epochs=10)
+print(f"loss {result['mean_loss']:.3f} ± {result['std_loss']:.3f}")
+print(f"accuracy {result['mean_acc']:.3f} ± {result['std_acc']:.3f}")
+print(result["fold_acc"])        # score de chaque bloc
+```
+
+- Les blocs sont **stratifiés** par défaut : chaque bloc garde les proportions de chaque classe.
+- Les réglages viennent du `training_config` ; les arguments en plus (`epochs=10`) les remplacent.
+- Avec un réseau construit en Python, passer une **fonction** qui le crée : `cross_validate(lambda: Sequential(...), X, y)`.
+- Aucun réseau entraîné n'est renvoyé : une fois la config choisie, l'entraîner une dernière fois avec `fit`, puis mesurer sur le test.
+
 ---
 
 ## 5. Évaluer
@@ -370,6 +388,28 @@ print("meilleure combinaison :", min(results))
 
 Toujours **choisir sur la validation**, puis mesurer une seule fois sur le test le modèle retenu.
 
+**Version plus fiable avec la validation croisée** : chaque combinaison est jugée sur la moyenne de `k` entraînements au lieu d'un seul découpage (plus lent : `k` fois plus d'entraînements) :
+
+```python
+import copy, itertools
+from mytorch import cross_validate
+from mytorch.config import load_config
+
+base = load_config("configs/medium_network.conf")
+scores = []
+for lr, rate in itertools.product([0.001, 0.003], [0.1, 0.3]):
+    config = copy.deepcopy(base)
+    config["optimizer"]["lr"] = lr
+    for layer in config["layers"]:
+        if layer["type"] == "dropout":
+            layer["rate"] = rate
+    result = cross_validate(config, X_tr, y_tr, k=3, seed=0, epochs=10)
+    scores.append((result["mean_loss"], result["std_loss"], lr, rate))
+    print(f"lr={lr} dropout={rate} → val_loss {result['mean_loss']:.4f} ± {result['std_loss']:.4f}")
+
+print("meilleure combinaison :", min(scores))
+```
+
 ### 8.2 Tracer les courbes d'apprentissage ([B2])
 
 Nécessite `pip install matplotlib` (autorisé par le sujet pour la visualisation) :
@@ -464,6 +504,11 @@ model.train_step(X_batch, y_batch) -> float
 model.train() / model.eval()
 model.get_config() -> dict                      # format .conf
 model.classes, model.training_config, model.seed, model.layers, model.optimizer
+
+# --- Validation croisée (mytorch.model_selection) ---
+kfold_indices(n_samples, k=5, shuffle=True, stratify=None, seed=None) -> [(train_idx, val_idx), ...]
+cross_validate(conf_dict_ou_fonction, X, y, k=5, stratified=True, seed=None, verbose=False, **fit_overrides)
+    -> {"fold_loss", "fold_acc", "mean_loss", "std_loss", "mean_acc", "std_acc", "best_epochs", "histories", "folds"}
 
 # --- Fichiers ---
 save_network(model, path, metadata=None)

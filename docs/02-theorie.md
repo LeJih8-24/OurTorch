@@ -172,3 +172,24 @@ On le **combat** avec trois mécanismes déjà implémentés :
 | **Early stopping**                    | On arrête quand la validation ne s'améliore plus depuis `patience` époques, et on restaure les meilleurs poids   | `Sequential.fit()`             |
 | **Dropout**                           | À l'entraînement, on éteint des neurones au hasard : le réseau ne peut pas dépendre d'un neurone précis         | `Dropout`                      |
 | **Régularisation L2** (weight decay) | On pénalise les grands poids : $L + \frac{\lambda}{2}\lVert W\rVert^2$, ce qui favorise des solutions plus simples | `weight_decay` des optimiseurs |
+
+### Mesurer de façon fiable : la validation croisée
+
+Un seul découpage entraînement / validation donne **un** score, qui dépend du hasard : selon les positions tombées dans la validation, il peut être optimiste ou pessimiste. Avec peu de données, ou des classes rares comme les mats, l'écart peut être important.
+
+La **validation croisée en k blocs** (*k-fold*) découpe les données en $k$ blocs de même taille, puis entraîne $k$ réseaux neufs. Chaque réseau est validé sur un bloc différent et entraîné sur les $k - 1$ autres :
+
+```
+bloc :      1      2      3      4      5
+réseau 1 : [val] [ent] [ent] [ent] [ent]   → score 1
+réseau 2 : [ent] [val] [ent] [ent] [ent]   → score 2
+   …
+réseau 5 : [ent] [ent] [ent] [ent] [val]   → score 5
+                                  moyenne ± écart-type
+```
+
+Chaque exemple sert exactement une fois à la validation. La **moyenne** des $k$ scores est une estimation plus fiable de la généralisation, et l'**écart-type** indique sa stabilité : un écart-type élevé signale un réseau sensible aux données vues. C'est l'outil adapté pour **comparer des hyperparamètres** ([OPT2]).
+
+**Stratifiée** : chaque classe est répartie séparément entre les blocs, pour que chaque bloc garde les mêmes proportions que l'ensemble. Sans cela, un bloc pourrait ne contenir presque aucun mat.
+
+Coût : $k$ entraînements au lieu d'un. Implémenté dans [04 §4](04-entrainement.md#4-la-validation-croisée-model_selectionpy).

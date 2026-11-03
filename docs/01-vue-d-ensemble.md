@@ -32,6 +32,7 @@ flowchart TB
         LO["losses.py"]
         O["optimizers.py"]
         M["model.py : Sequential"]
+        MS["model_selection.py : validation croisée"]
         C["config.py : .conf"]
         S["serialization.py : .nn"]
     end

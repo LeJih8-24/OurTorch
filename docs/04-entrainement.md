@@ -184,3 +184,79 @@ print(model.predict(X[:3]))      # par ex. ['Nothing', 'Nothing', 'Checkmate']
 ```
 
 En pratique, on construit plutôt le modèle depuis un `.conf` : [05 — Configuration et sauvegarde](05-configuration-et-sauvegarde.md).
+
+---
+
+## 4. La validation croisée (`model_selection.py`)
+
+```python
+from mytorch import cross_validate, kfold_indices
+```
+
+Principe et intérêt : [02 §9](02-theorie.md#mesurer-de-façon-fiable--la-validation-croisée).
+
+### `kfold_indices(n_samples, k=5, shuffle=True, stratify=None, seed=None)`
+
+Découpe les indices `0 … n_samples-1` en `k` blocs et renvoie `k` paires `(indices_entraînement, indices_validation)`.
+
+| Argument | Rôle |
+| :--- | :--- |
+| `k` | Nombre de blocs, entier ≥ 2 et ≤ `n_samples` (sinon `ValueError`) |
+| `shuffle` | Mélange avant de découper (`False` : blocs contigus, dans l'ordre) |
+| `stratify` | Labels one-hot `(N, nb_classes)` ou indices de classe `(N,)` : chaque classe est découpée séparément, chaque bloc garde les proportions de l'ensemble |
+| `seed` | Graine du mélange. Sans graine, utilise le générateur global de NumPy (`np.random.seed()` le rend reproductible) |
+
+Garanties (testées) : chaque exemple est dans **exactement un** bloc de validation, entraînement et validation sont disjoints, les tailles des blocs diffèrent d'au plus 1. En stratifié, une classe de 5 exemples avec `k=5` donne exactement 1 exemple par bloc.
+
+```python
+folds = kfold_indices(100, k=5, stratify=y, seed=0)
+for train_idx, val_idx in folds:
+    print(len(train_idx), len(val_idx))     # 80 20, cinq fois
+```
+
+### `cross_validate(model_source, X, y, k=5, stratified=True, seed=None, verbose=False, **fit_overrides)`
+
+Évalue une **configuration** (pas un réseau déjà entraîné) par validation croisée.
+
+| Argument | Rôle |
+| :--- | :--- |
+| `model_source` | Chemin d'un `.conf`, dictionnaire de config, ou **fonction** sans argument qui renvoie un `Sequential` neuf (pour un réseau construit en Python) |
+| `X`, `y` | Toutes les données disponibles (hors jeu de test final) |
+| `k` | Nombre de blocs |
+| `stratified` | Blocs stratifiés selon `y` (par défaut : oui) |
+| `seed` | Graine du découpage en blocs |
+| `verbose` | Une ligne par bloc et un résumé, **sur stderr** |
+| `**fit_overrides` | Remplacent les réglages du `training_config` : `epochs=10`, `patience=None`, `batch_size=64`… |
+
+**Déroulement, pour chaque bloc** :
+1. Un réseau **neuf** est construit depuis `model_source`. Rien ne passe d'un bloc à l'autre : ni poids, ni statistiques de normalisation (calculées sur l'entraînement du bloc uniquement).
+2. Il est entraîné sur les $k-1$ autres blocs avec `fit(**training_config, **fit_overrides)`. L'early stopping utilise le `val_split` pris **à l'intérieur** de ces blocs d'entraînement.
+3. Il est évalué sur le bloc mis de côté, qui n'a servi ni à apprendre ni à arrêter l'entraînement : le score n'est donc pas biaisé par l'early stopping.
+
+**Résultat** :
+
+```python
+{
+    "fold_loss":  [0.41, 0.38, 0.45, 0.40, 0.39],   # score de chaque bloc
+    "fold_acc":   [0.86, 0.88, 0.84, 0.87, 0.87],
+    "mean_loss": 0.406, "std_loss": 0.024,           # moyenne et écart-type
+    "mean_acc":  0.864, "std_acc":  0.014,
+    "best_epochs": [12, 15, 9, 14, 11],              # époque retenue dans chaque bloc
+    "histories": [...],                              # history de fit() de chaque bloc
+    "folds": [(train_idx, val_idx), ...],            # découpage utilisé
+}
+```
+
+(valeurs illustratives)
+
+```python
+from mytorch import cross_validate
+
+result = cross_validate("configs/medium_network.conf", X, y, k=5, seed=0, verbose=True)
+print(f"accuracy {result['mean_acc']:.3f} ± {result['std_acc']:.3f}")
+```
+
+**Bonnes pratiques** :
+- garder un **jeu de test** à part, jamais passé à `cross_validate` : la validation croisée sert à **choisir** une configuration, le test à la **mesurer** une seule fois à la fin ;
+- `cross_validate` ne renvoie pas de réseau entraîné : une fois la configuration choisie, l'entraîner une dernière fois sur toutes les données (hors test) ;
+- `k = 5` est un bon compromis ; `k = 10` donne une estimation un peu plus fiable mais coûte deux fois plus cher.
