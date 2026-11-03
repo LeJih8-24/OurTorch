@@ -17,7 +17,9 @@ Outputs:
     <out>/<level>_history.json  learning curves (train / validation loss and accuracy)
     <out>/summary.json          one line of results per level
 
-Running it twice with the same arguments produces the same networks.
+The split, the initial weights, the shuffling and the dropout masks are all seeded:
+running it again with the same arguments retrains the same networks (up to
+floating-point differences between machines / BLAS libraries).
 """
 import argparse
 import glob
