@@ -15,6 +15,7 @@ Les tests sont écrits avec `unittest` (bibliothèque standard) et se lancent au
 
 | Fichier | Tests | Ce qui est vérifié |
 | :--- | :--- | :--- |
+| `test_analyzer.py` | 17 | **`my_torch_analyzer` lancé comme le vrai exécutable** sur des positions du dataset : une prédiction par ligne dans l'ordre, labels et lignes vides ignorés en prédiction, plus d'un paquet de 1024, `LOADFILE` écrasé sans `--save` et intact avec, positions d'entraînement apprises, reproductibilité, chaîne générateur → entraînement → prédiction, codes 84 (réseau corrompu, FEN invalide avec numéro de ligne, label manquant ou inconnu, mauvaise taille d'entrée, `SAVEFILE` impossible à écrire) |
 | `test_cli.py` | 15 | Arguments de l'analyseur : `--help` (code 0), modes manquants / multiples, `--save` hors `--train`, fichiers absents / vides, option inconnue → code 84 |
 | `test_initializers.py` | 10 | Forme, type `float32`, moyenne et variance attendues de chaque initialiseur ; alias ; erreurs ; classe `Layer` abstraite |
 | `test_layers.py` | 18 | Gradient check de `Linear` et de chaque activation ; valeurs connues ; stabilité de Sigmoid / Softmax ; Dropout (taux, mise à l'échelle, masque réutilisé au backward, identité en inférence, MC Dropout, reproductibilité) |
