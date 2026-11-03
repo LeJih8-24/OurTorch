@@ -42,13 +42,26 @@ class Normalization(Layer):
                 f"Normalization expected input of shape (batch, {self.features}), got {inputs.shape}."
             )
 
+    ADAPT_CHUNK = 65536
+
     def adapt(self, inputs: np.ndarray) -> None:
-        """Compute mean and std of each feature on (training) data."""
+        """Compute mean and std of each feature on (training) data.
+
+        Sums are accumulated in float64 by chunks of ADAPT_CHUNK rows, so a large
+        dataset (possibly stored as uint8) never needs a float64 copy of itself.
+        """
         self._check(inputs)
         if len(inputs) == 0:
             raise ValueError("Cannot adapt Normalization on an empty dataset.")
-        std = inputs.std(axis=0, keepdims=True)
-        self.mean[...] = inputs.mean(axis=0, keepdims=True)
+        total = np.zeros((1, self.features), dtype=np.float64)
+        total_sq = np.zeros((1, self.features), dtype=np.float64)
+        for start in range(0, len(inputs), self.ADAPT_CHUNK):
+            chunk = inputs[start:start + self.ADAPT_CHUNK].astype(np.float64)
+            total += chunk.sum(axis=0, keepdims=True)
+            total_sq += (chunk * chunk).sum(axis=0, keepdims=True)
+        mean = total / len(inputs)
+        std = np.sqrt(np.maximum(total_sq / len(inputs) - mean * mean, 0.0))
+        self.mean[...] = mean
         self.std[...] = np.where(std < self.MIN_STD, 1.0, std)
         self.count[0] = len(inputs)
 
