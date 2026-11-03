@@ -362,53 +362,54 @@ print(read_metadata("my_torch_network_medium.nn"))   # {'encoder': 'fen-773', 'd
 
 ### 8.1 Comparer plusieurs configurations (recherche d'hyperparamètres)
 
-La librairie n'a pas encore d'outil de recherche ([OPT2]), mais une **grid search** s'écrit avec `build_from_config` sur des dictionnaires :
+`grid_search` essaie toutes les combinaisons d'une grille de valeurs et les classe ([OPT2], [détails](04-entrainement.md#5-la-grid-search-model_selectionpy-opt2)) :
 
 ```python
-import copy, itertools
-from mytorch import build_from_config
-from mytorch.config import load_config
+from mytorch import grid_search
 
-base = load_config("configs/medium_network.conf")
-results = []
-for lr, rate in itertools.product([0.001, 0.003], [0.1, 0.3]):
-    config = copy.deepcopy(base)
-    config["optimizer"]["lr"] = lr
-    for layer in config["layers"]:
-        if layer["type"] == "dropout":
-            layer["rate"] = rate
-    model = build_from_config(config)
-    history = model.fit(X_tr, y_tr, epochs=10, batch_size=64, validation_data=(X_va, y_va))
-    best = min(history["val_loss"])
-    results.append((best, lr, rate))
-    print(f"lr={lr} dropout={rate} → meilleure val_loss {best:.4f}")
-
-print("meilleure combinaison :", min(results))
+result = grid_search(
+    "configs/medium_network.conf",                          # config de base (non modifiée)
+    {"optimizer.lr": [0.001, 0.003], "layers.*.rate": [0.1, 0.3]},   # 2 × 2 = 4 combinaisons
+    X_tr, y_tr, seed=0, epochs=10, verbose=True,
+)
+for r in result["results"]:                                 # la meilleure en premier
+    print(r["params"], f"val_loss {r['loss']:.4f}  acc {r['accuracy']:.3f}")
+print("meilleure combinaison :", result["best_params"])
 ```
 
-Toujours **choisir sur la validation**, puis mesurer une seule fois sur le test le modèle retenu.
-
-**Version plus fiable avec la validation croisée** : chaque combinaison est jugée sur la moyenne de `k` entraînements au lieu d'un seul découpage (plus lent : `k` fois plus d'entraînements) :
+Par défaut, chaque combinaison est notée sur un découpage stratifié **identique pour toutes**. Plus fiable mais `k` fois plus long : la **validation croisée**, avec `k=` :
 
 ```python
-import copy, itertools
-from mytorch import cross_validate
-from mytorch.config import load_config
-
-base = load_config("configs/medium_network.conf")
-scores = []
-for lr, rate in itertools.product([0.001, 0.003], [0.1, 0.3]):
-    config = copy.deepcopy(base)
-    config["optimizer"]["lr"] = lr
-    for layer in config["layers"]:
-        if layer["type"] == "dropout":
-            layer["rate"] = rate
-    result = cross_validate(config, X_tr, y_tr, k=3, seed=0, epochs=10)
-    scores.append((result["mean_loss"], result["std_loss"], lr, rate))
-    print(f"lr={lr} dropout={rate} → val_loss {result['mean_loss']:.4f} ± {result['std_loss']:.4f}")
-
-print("meilleure combinaison :", min(scores))
+result = grid_search("configs/medium_network.conf", {"optimizer.lr": [0.001, 0.003]},
+                     X_tr, y_tr, k=3, seed=0, epochs=10)
+best = result["results"][0]
+print(f"{best['params']} → {best['loss']:.4f} ± {best['loss_std']:.4f}")
 ```
+
+Garder la configuration gagnante, et le réseau entraîné avec `refit=True` :
+
+```python
+import json
+from mytorch.serialization import save_network
+
+result = grid_search("configs/medium_network.conf", {"layers.*.rate": [0.1, 0.3]},
+                     X_tr, y_tr, seed=0, epochs=5, refit=True)
+with open("medium_tuned.conf", "w") as f:
+    json.dump(result["best_config"], f, indent=2)
+save_network(result["best_model"], "medium_tuned.nn")
+```
+
+Pour comparer des **architectures** entières, la clé `layers` prend une liste de listes de couches :
+
+```python
+petit = [{"type": "normalization"}, {"type": "linear", "in": 773, "out": 64}, {"type": "relu"},
+         {"type": "linear", "in": 64, "out": 3, "init": "xavier"}]
+grand = [{"type": "normalization"}, {"type": "linear", "in": 773, "out": 256}, {"type": "relu"},
+         {"type": "dropout", "rate": 0.2}, {"type": "linear", "in": 256, "out": 3, "init": "xavier"}]
+result = grid_search("configs/medium_network.conf", {"layers": [petit, grand]}, X_tr, y_tr, seed=0, epochs=5)
+```
+
+Toujours **choisir sur la validation** (ce que fait `grid_search`), puis mesurer une seule fois sur le **test** le modèle retenu.
 
 ### 8.2 Tracer les courbes d'apprentissage ([B2])
 
@@ -509,6 +510,13 @@ model.classes, model.training_config, model.seed, model.layers, model.optimizer
 kfold_indices(n_samples, k=5, shuffle=True, stratify=None, seed=None) -> [(train_idx, val_idx), ...]
 cross_validate(conf_dict_ou_fonction, X, y, k=5, stratified=True, seed=None, verbose=False, **fit_overrides)
     -> {"fold_loss", "fold_acc", "mean_loss", "std_loss", "mean_acc", "std_acc", "best_epochs", "histories", "folds"}
+
+# --- Grid search (mytorch.model_selection) ---
+grid_search(conf_ou_dict, {"optimizer.lr": [...], "layers.*.rate": [...]}, X, y,
+            k=None, validation_data=None, val_split=None, metric="loss", seed=None, refit=False, verbose=False, **fit_overrides)
+    -> {"results", "best_params", "best_score", "best_config", "metric", "n_combinations", "best_model"?}
+parameter_combinations(grille) -> [{chemin: valeur}, ...]
+set_config_value(config, "optimizer.lr", 0.003)          # modifie un dict de config en place
 
 # --- Fichiers ---
 save_network(model, path, metadata=None)

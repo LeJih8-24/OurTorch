@@ -282,18 +282,18 @@ Le sujet demande d'aller au-delà du réglage manuel :
 | **Algorithme génétique** | Population de configs ; on garde les meilleures, on les croise et on les mute | Plus complexe, efficace pour de grands espaces |
 | **Recuit simulé** | On modifie une config au hasard, on accepte parfois une moins bonne pour sortir des minima locaux | Simple, séquentiel |
 
-Une grid search écrite à la main est donnée dans le [guide §8.1](09-guide-utilisation.md#81-comparer-plusieurs-configurations-recherche-dhyperparamètres). Un outil intégré à la librairie reste à écrire.
+La **grid search est intégrée** à la librairie : `grid_search(config, grille, X, y)` ([référence](04-entrainement.md#5-la-grid-search-model_selectionpy-opt2), [exemples](09-guide-utilisation.md#81-comparer-plusieurs-configurations-recherche-dhyperparamètres)). Les autres méthodes du tableau ne le sont pas encore.
 
-**Espace de recherche proposé** pour commencer :
+**Espace de recherche proposé** pour commencer (chemins utilisables directement comme clés de `grid_search`) :
 
 | Hyperparamètre | Valeurs à tester |
 | :--- | :--- |
-| `lr` | 0.0003, 0.001, 0.003, 0.01 |
-| Taille des couches | 128, 256, 512 (première couche cachée) |
-| Nombre de couches cachées | 1, 2, 3 |
-| `dropout.rate` | 0.0, 0.2, 0.3, 0.5 |
-| `weight_decay` | 0, 1e-5, 1e-4, 1e-3 |
-| `batch_size` | 64, 128, 256 |
+| `optimizer.lr` | 0.0003, 0.001, 0.003, 0.01 |
+| Taille des couches (clé `layers`, une liste par architecture) | 128, 256, 512 (première couche cachée) |
+| Nombre de couches cachées (clé `layers`) | 1, 2, 3 |
+| `layers.*.rate` (dropout) | 0.0, 0.2, 0.3, 0.5 |
+| `optimizer.weight_decay` | 0, 1e-5, 1e-4, 1e-3 |
+| `training.batch_size` | 64, 128, 256 |
 | `optimizer.type` | adam, sgd (`lr` × 10 pour SGD) |
 
 ---
@@ -315,7 +315,7 @@ Une grid search écrite à la main est donnée dans le [guide §8.1](09-guide-ut
 
 Section à remplir avec les mesures de la recherche d'hyperparamètres et des benchmarks (issue #6). Ce sont **ces résultats** qui justifieront les valeurs finales en soutenance.
 
-**Protocole** (à respecter pour que les comparaisons soient valables) :
+**Protocole** (à respecter pour que les comparaisons soient valables ; `grid_search` applique automatiquement les trois premiers points) :
 - même jeu de données, même découpage entraînement / validation / test pour tous les essais ;
 - une seule valeur modifiée par rapport à la config de référence ;
 - 3 graines par essai, on reporte la moyenne, **ou** une validation croisée stratifiée (`cross_validate`, `k=5`) : on reporte `mean_loss ± std_loss` ;

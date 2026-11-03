@@ -260,3 +260,123 @@ print(f"accuracy {result['mean_acc']:.3f} ± {result['std_acc']:.3f}")
 - garder un **jeu de test** à part, jamais passé à `cross_validate` : la validation croisée sert à **choisir** une configuration, le test à la **mesurer** une seule fois à la fin ;
 - `cross_validate` ne renvoie pas de réseau entraîné : une fois la configuration choisie, l'entraîner une dernière fois sur toutes les données (hors test) ;
 - `k = 5` est un bon compromis ; `k = 10` donne une estimation un peu plus fiable mais coûte deux fois plus cher.
+
+---
+
+## 5. La grid search (`model_selection.py`) [OPT2]
+
+```python
+from mytorch import grid_search, parameter_combinations
+```
+
+### Le principe
+
+On ne peut pas régler les hyperparamètres par descente de gradient : il faut **essayer** plusieurs valeurs et comparer. La grid search le fait de façon systématique :
+
+1. on choisit une **config de base** (un `.conf`) ;
+2. on donne une **grille** : pour quelques hyperparamètres, la liste des valeurs à essayer ;
+3. la fonction construit **toutes les combinaisons** (produit cartésien), entraîne un réseau neuf pour chacune **dans les mêmes conditions**, le note sur des données qu'il n'a pas vues, et **classe** les combinaisons.
+
+```
+grille : optimizer.lr ∈ {0.001, 0.003}   ×   layers.*.rate ∈ {0.1, 0.3}
+
+   combinaison                     score (val_loss)
+   lr=0.001  dropout=0.3     →     0.38   ← meilleure
+   lr=0.003  dropout=0.3     →     0.41
+   lr=0.001  dropout=0.1     →     0.44
+   lr=0.003  dropout=0.1     →     0.47
+```
+
+**Coût** : le nombre de combinaisons est le **produit** des tailles des listes. 3 valeurs × 3 valeurs × 4 valeurs = 36 entraînements (× `k` en validation croisée). D'où l'intérêt de commencer par une grille grossière sur 2 ou 3 hyperparamètres, puis d'affiner autour du meilleur point.
+
+### Désigner un hyperparamètre : les chemins
+
+Les clés de la grille sont des **chemins** dans la config, séparés par des points (fonction `set_config_value`) :
+
+| Chemin | Modifie |
+| :--- | :--- |
+| `optimizer.lr` | `config["optimizer"]["lr"]` |
+| `optimizer.type` | l'optimiseur (`"adam"` / `"sgd"`) |
+| `training.batch_size` | la taille de batch (de même : `training.epochs`, `training.patience`…) |
+| `layers.1.out` | le `out` de la couche n°1 (attention : le `in` de la couche suivante doit suivre) |
+| `layers.*.rate` | le `rate` de **toutes** les couches qui en ont un, c'est-à-dire tous les dropouts |
+| `layers` | la liste complète des couches : pour comparer des **architectures** entières |
+| `seed` | la graine (pour mesurer l'effet du hasard) |
+
+`*` parcourt tous les éléments d'une liste et ignore ceux qui n'ont pas la clé demandée. Un chemin qui ne désigne rien lève une `ValueError`.
+
+### `grid_search(base_config, param_grid, X, y, k=None, validation_data=None, val_split=None, metric="loss", stratified=True, seed=None, refit=False, verbose=False, **fit_overrides)`
+
+| Argument | Rôle |
+| :--- | :--- |
+| `base_config` | Chemin d'un `.conf` ou dictionnaire. Le fichier n'est jamais modifié. |
+| `param_grid` | `{chemin: [valeurs]}` |
+| `X`, `y` | Données (hors jeu de test final) |
+| `k` | Si donné : chaque combinaison est notée par **validation croisée** à `k` blocs (moyenne des blocs) |
+| `validation_data` | Si donné : entraînement sur `(X, y)`, note sur ce jeu de validation |
+| `val_split` | Sinon : un découpage **stratifié** unique de `(X, y)`, le **même pour toutes les combinaisons** (par défaut, le `val_split` de la config) |
+| `metric` | `"loss"` (plus petit = meilleur) ou `"accuracy"` (plus grand = meilleur) |
+| `seed` | Graine des découpages |
+| `refit` | Si `True` : entraîne une dernière fois la meilleure config sur tout `(X, y)` et la renvoie |
+| `verbose` | Une ligne par combinaison et le meilleur résultat, **sur stderr** |
+| `**fit_overrides` | Remplacent les réglages d'entraînement pour toutes les combinaisons (ex. `epochs=10` pour une recherche rapide) |
+
+**Garanties** :
+- **Validation d'abord** : toutes les combinaisons sont vérifiées avant le premier entraînement. Une valeur invalide (ex. une taille de couche qui casse la continuité) arrête la recherche immédiatement, avec la combinaison fautive dans le message, sans avoir perdu de temps.
+- **Comparaison équitable** : mêmes données, même découpage, même graine d'initialisation (celle de la config) pour toutes les combinaisons. Seuls les hyperparamètres de la grille changent.
+- **Reproductible** : même `seed` → mêmes scores.
+
+**Quel mode choisir ?**
+
+| Mode | Fiabilité | Coût | Quand |
+| :--- | :--- | :--- | :--- |
+| Découpage unique (défaut) | Correcte | 1 entraînement par combinaison | Beaucoup de données, première recherche grossière |
+| `validation_data` | Correcte | 1 entraînement par combinaison | On a déjà un jeu de validation fixe |
+| `k=5` (validation croisée) | **Bonne** (moyenne ± écart-type) | 5 entraînements par combinaison | Peu de données, classes rares, choix final entre quelques candidats |
+
+En découpage unique ou avec `validation_data`, le jeu de validation sert aussi à l'early stopping : son score est légèrement optimiste. Ce n'est pas gênant pour **classer** les combinaisons (le biais est le même pour toutes), mais le score final doit venir d'un **jeu de test** séparé.
+
+**Résultat** :
+
+```python
+{
+    "results": [                       # une entrée par combinaison, la meilleure en premier
+        {"params": {"optimizer.lr": 0.001, "layers.*.rate": 0.3},
+         "score": 0.38,                # = loss ou accuracy selon metric
+         "loss": 0.38, "accuracy": 0.87,
+         "loss_std": 0.02, "accuracy_std": 0.01,   # None hors validation croisée
+         "best_epochs": [12, 14, 11],              # époque retenue (une par bloc en k-fold)
+         "config": {...}},                         # config complète de cette combinaison
+        ...
+    ],
+    "best_params": {"optimizer.lr": 0.001, "layers.*.rate": 0.3},
+    "best_score": 0.38,
+    "best_config": {...},              # prête pour build_from_config ou un fichier .conf
+    "metric": "loss",
+    "n_combinations": 4,
+    "best_model": Sequential,          # seulement avec refit=True
+}
+```
+
+(valeurs illustratives)
+
+### Exemple
+
+```python
+import json
+from mytorch import grid_search
+from mytorch.serialization import save_network
+
+result = grid_search(
+    "configs/medium_network.conf",
+    {"optimizer.lr": [0.0003, 0.001, 0.003], "layers.*.rate": [0.1, 0.3]},
+    X, y, k=3, seed=0, epochs=15, refit=True, verbose=True,
+)
+print(result["best_params"], result["best_score"])
+
+with open("configs/medium_tuned.conf", "w") as f:       # garder la config gagnante
+    json.dump(result["best_config"], f, indent=2)
+save_network(result["best_model"], "my_torch_network_medium.nn")
+```
+
+**Limites** : seule la grid search est intégrée. La random search, les algorithmes génétiques et le recuit simulé ([10 §5.3](10-hyperparametres.md#53-recherche-automatique-opt2)) ne le sont pas ; ils réutiliseraient `set_config_value` et `cross_validate`.
