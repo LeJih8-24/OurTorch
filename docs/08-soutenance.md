@@ -44,6 +44,9 @@ Trois mécanismes : (1) **séparation entraînement / validation** et **early st
 **« Pourquoi normaliser les entrées ? »**
 Pour que toutes les features aient la même échelle : sinon les grandes features dominent les gradients. Démontré par un test : SGD diverge (NaN) sans normalisation et atteint 92 % avec. Les statistiques sont calculées **sur l'entraînement uniquement** (pas de fuite d'information depuis la validation) et sauvegardées dans le `.nn`. Voir [03 — Normalization](03-couches.md#normalization-normalizationpy).
 
+**« Comment avez-vous choisi les hyperparamètres ? » [OPT2]**
+Par **grid search** (`grid_search`) : on part d'une config, on donne une grille de valeurs (ex. learning rate × taux de dropout), et la fonction entraîne un réseau neuf par combinaison dans les mêmes conditions (mêmes données, même découpage, même initialisation), le note sur des données non vues (découpage stratifié ou validation croisée) et classe les combinaisons. Toutes les combinaisons sont validées avant le premier entraînement. La meilleure config est ensuite réentraînée et mesurée sur un jeu de test séparé. Voir [04 §5](04-entrainement.md#5-la-grid-search-model_selectionpy-opt2) et [10](10-hyperparametres.md).
+
 **« Pourquoi une validation croisée ? »**
 Un seul découpage entraînement / validation donne un score qui dépend du hasard du découpage. La validation croisée entraîne k réseaux neufs, chacun validé sur un bloc différent : la moyenne des k scores est plus fiable, l'écart-type mesure la stabilité. Elle est **stratifiée** pour que chaque bloc contienne des mats malgré leur rareté, et chaque bloc recalcule sa normalisation sur ses seules données d'entraînement (pas de fuite). Voir [04 §4](04-entrainement.md#4-la-validation-croisée-model_selectionpy).
 
@@ -88,7 +91,8 @@ Le réseau *k* reçoit la graine `seed + k - 1` : les réseaux diffèrent entre 
 | [OPT1] Lutte contre l'overfitting | **DOIT** | ✅ | Validation, early stopping, dropout, L2 |
 | [OPT1] Validation croisée (k-fold, stratifiée) | Exemple cité | ✅ | `cross_validate`, `kfold_indices` |
 | [OPT1] Jeu de test séparé | Exemple cité | ⚠️ | À faire à la main (guide 09 §4.2) |
-| [OPT2] Optimisation des hyperparamètres (grid / random search, génétique…) | Attendu en soutenance | ❌ | Grid search écrite à la main dans le guide (09 §8.1), pas d'outil dans la librairie |
+| [OPT2] Optimisation des hyperparamètres : grid search | Attendu en soutenance | ✅ | `grid_search` (découpage unique, jeu de validation ou validation croisée) |
+| [OPT2] Random search, algorithme génétique, recuit simulé | Exemples cités | ❌ | Non intégrés |
 | [OPT3] Mini-batch, initialisations | Exemples cités | ✅ | `fit`, `initializers.py` |
 | [OPT3] MC Dropout | Exemple cité | ⚠️ | Couche prête, pas de méthode de prédiction dédiée |
 | Benchmarks avec graphiques | DEVRAIT | ❌ | `history` fournit les données ; script et graphiques : issue #6 |
@@ -96,7 +100,7 @@ Le réseau *k* reçoit la graine `seed + k - 1` : les réseaux diffèrent entre 
 | [B3] Métriques multiples (précision, rappel, F1) | Bonus | ❌ | Calcul à la main dans le guide (09 §5) |
 | [B1] Parallélisme | Bonus | ❌ | — |
 
-**Bilan** : toutes les exigences **obligatoires** de la librairie sont remplies. Ce qui manque relève des attentes de soutenance ([OPT2], benchmarks) et des bonus.
+**Bilan** : toutes les exigences **obligatoires** de la librairie sont remplies. La grid search et la validation croisée couvrent [OPT1] et [OPT2]. Ce qui manque : les mesures réelles (benchmarks, résultats de la recherche) et des bonus.
 
 ## Limites connues et améliorations prévues
 
@@ -109,7 +113,7 @@ Il vaut mieux les connaître et les annoncer avant qu'on les relève :
 | Seule l'**accuracy** est mesurée | Elle masque les erreurs sur les classes rares | Matrice de confusion, précision, rappel, F1 par classe [B3] |
 | Pas de **planning de learning rate** | Réglage manuel du `lr` | Décroissance par paliers ou cosinus (`optimizer.lr` est déjà modifiable) |
 | MC Dropout non exploité côté modèle | Pas d'estimation d'incertitude | `Sequential.predict_mc(X, T)` |
-| Pas de **recherche d'hyperparamètres** [OPT2] | Attendue en soutenance | Grid search / random search / algorithme génétique dans la librairie |
+| Seule la **grid search** est intégrée [OPT2] | Coût qui explose avec le nombre d'hyperparamètres | Random search ou algorithme génétique, en réutilisant `set_config_value` et `cross_validate` |
 | État de l'optimiseur non sauvegardé | Un réentraînement repart avec Adam « à froid » | Sauvegarder `m`, `v`, `t` si besoin |
 | Le `weight_decay` s'applique aussi aux biais | Effet négligeable en pratique | Exclure les biais |
 

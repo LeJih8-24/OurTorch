@@ -24,6 +24,7 @@ The project is split into three main components:
 | Losses (MSE, cross-entropy), optimizers (SGD, Adam), `Sequential` model with early stopping | ✅ Done | #4 |
 | Input normalization, `.conf` parser, `.nn` save/load, `my_torch_generator`, basic/medium/full configs | ✅ Done | #3 |
 | k-fold cross-validation (stratified) | ✅ Done | — |
+| Hyperparameter grid search [OPT2] | ✅ Done | — |
 | FEN parser & feature encoding (773 features) | ✅ Done | #2 |
 | `--train` / `--predict` pipelines | ⏳ To do | #1 |
 | Benchmarks, pre-trained networks, docs | ⏳ To do | #6 |
