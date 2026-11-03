@@ -27,3 +27,6 @@ env/
 # Only the pre-trained networks evaluated by the autograder are versioned.
 *.nn
 !my_torch_network*.nn
+
+# Experiment outputs (datasets slices, networks, logs); results are reported in docs/
+experiments/output/
