@@ -130,7 +130,7 @@ OurTorch/
 | Losses, optimiseurs, `Sequential` | ✅ | #4 |
 | Normalisation, `.conf`, `.nn`, générateur | ✅ | #3 |
 | Encodeur FEN | ✅ | #2 |
-| Pipelines `--train` / `--predict` | ⏳ | #1 |
+| Pipelines `--train` / `--predict` | ✅ | #1 |
 | Benchmarks, réseaux pré-entraînés | ⏳ | #6 |
 
-Aujourd'hui, `./my_torch_analyzer` valide ses arguments mais n'entraîne ni ne prédit encore : il manque le branchement des briques existantes (#1).
+`./my_torch_analyzer` entraîne et prédit ([06](06-analyseur-et-outils.md#analyzerpipelinepy--les-deux-modes)). Il reste à produire les réseaux pré-entraînés `my_torch_network*.nn` et les benchmarks (#6).

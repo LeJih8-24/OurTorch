@@ -26,7 +26,7 @@ The project is split into three main components:
 | k-fold cross-validation (stratified) | ✅ Done | — |
 | Hyperparameter grid search [OPT2] | ✅ Done | — |
 | FEN parser & feature encoding (773 features) | ✅ Done | #2 |
-| `--train` / `--predict` pipelines | ⏳ To do | #1 |
+| `--train` / `--predict` pipelines | ✅ Done | #1 |
 | Benchmarks, pre-trained networks, docs | ⏳ To do | #6 |
 
 ### Building a network from a `.conf` file
@@ -142,6 +142,10 @@ DESCRIPTION
 # Train a network and save the updated weights to a new file
 ./my_torch_analyzer --train --save trained_model.nn model.nn training_boards.txt
 ```
+
+- `--predict` prints **one label per position on stdout, in input order, and nothing else**. Expected outputs after the FEN and blank lines are ignored. Positions are processed by chunks of 1024.
+- `--train` requires a label on every line. Labels are adapted to the network classes (`Checkmate White` → `Checkmate` for a 3-class network, `Check` for a basic one), training uses the settings and seed of the network's `.conf`, per-epoch logs go to stderr, and the network is saved atomically (a failed save leaves `LOADFILE` intact).
+- Details: [docs/06-analyseur-et-outils.md](./docs/06-analyseur-et-outils.md) (French).
 
 ### Error Handling Convention
 All invalid CLI arguments, missing/unreadable files, or runtime errors write a formatted message (`Error: <message>`) to `stderr` and exit with Epitech error code **`84`**.

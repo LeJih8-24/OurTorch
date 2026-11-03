@@ -40,7 +40,8 @@ OurTorch/
 │
 ├── analyzer/                   # Chessboard analyzer application
 │   ├── __init__.py             # Package initialization
-│   ├── main.py                 # Entrypoint copied to ./my_torch_analyzer
+│   ├── main.py                 # Entrypoint copied to ./my_torch_analyzer (errors -> exit 84)
+│   ├── pipeline.py             # --train / --predict pipelines
 │   ├── cli.py                  # Strict CLI parser & argument validator
 │   ├── fen_encoder.py          # FEN parsing/validation, input encoding, label mapping
 │   └── utils.py                # Central error handling (`exit_error`)
@@ -51,6 +52,7 @@ OurTorch/
 └── tests/                      # Unit test suite
     ├── __init__.py             # Test path configuration
     ├── gradcheck.py            # Reusable numerical gradient checker (finite differences)
+    ├── test_analyzer.py        # my_torch_analyzer run as the real executable (train, predict, exit codes)
     ├── test_cli.py             # Unit tests for CLI parsing and exit code 84 rules
     ├── test_fen_encoder.py     # FEN parsing on the subject boards, encoding and label mapping
     ├── test_config.py          # .conf validation, build_from_config, shipped configs
@@ -124,6 +126,11 @@ Step-by-step walkthrough with encoded examples: [docs/fen_encoder.MD](./docs/fen
   The encoding deliberately contains **no hand-crafted chess features** (attacked king, number of attackers, escape squares, ...): computing them is already a rule-based check detector, which the subject forbids as a predictor. The network must learn these patterns from the raw board.
 - **`adapt_label(label, classes)` / `encode_labels(labels, classes)`**: maps dataset labels onto the classes of the loaded network, then one-hot encodes them in `classes` order. Finer labels are coarsened when needed: `Checkmate White → Checkmate → Check`, `Check Black → Check`, `Stalemate → Nothing`. A coarse label (`"Check"`) cannot fill finer classes (`"Check White"`) and raises.
 - **Label colors** follow the subject's example: the color is the side that *gives* check or mate (White to move and mated → `"Checkmate Black"`).
+
+#### `analyzer/main.py` and `analyzer/pipeline.py`
+`main.py` parses the arguments, calls `run(args)` and turns every `ValueError` / `OSError` (corrupted network, invalid FEN, missing label, unwritable file) and `MemoryError` into a message on stderr with exit code `84`. A missing NumPy also exits with `84`.
+- **`--predict`**: `load_compatible_network(LOADFILE)` (load + check that the first layer expects `INPUT_SIZE` = 773 features), `read_chess_file(require_label=False)` (expected outputs ignored), then `encode_fens` + `model.predict` by chunks of `PREDICT_CHUNK` = 1024 positions. One label per line on stdout, in input order, nothing else.
+- **`--train`**: labels required, `encode_labels(labels, model.classes)` adapts them to the network classes, `np.random.seed(model.seed)` then `model.fit(X, y, **model.training_config, verbose=True)` (logs on stderr), `save_network` to `SAVEFILE` or `LOADFILE` (atomic), metadata kept and updated (`input_size`, `trained_on`), one-line summary on stdout. The whole `CHESSFILE` is encoded at once (~3 KB per position).
 
 ---
 

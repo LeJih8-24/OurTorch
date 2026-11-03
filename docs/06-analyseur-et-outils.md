@@ -17,9 +17,9 @@
 | :--- | :--- | :--- |
 | `analyzer/cli.py` | Lecture et validation des arguments | ✅ Fait (#7) |
 | `analyzer/utils.py` | `exit_error()` : message sur stderr + code 84 | ✅ Fait (#9) |
-| `analyzer/main.py` | Point d'entrée | ⚠️ Valide les arguments puis renvoie 0 : n'entraîne ni ne prédit encore |
+| `analyzer/main.py` | Point d'entrée : arguments → pipeline, erreurs → code 84 | ✅ Fait (#1) |
 | `analyzer/fen_encoder.py` | FEN → vecteur de 773 nombres, labels → one-hot ([détails](fen_encoder.MD)) | ✅ Fait (#2) |
-| `analyzer/pipeline.py` | Branchement `--train` / `--predict` | ⏳ Issue #1 |
+| `analyzer/pipeline.py` | Modes `--train` et `--predict` | ✅ Fait (#1) |
 
 ## `analyzer/utils.py`
 
@@ -61,42 +61,82 @@ Règles, dans l'ordre :
 
 Chaque erreur passe par `exit_error()` (stderr + code 84). L'ordre des options est libre : `--save out.nn --train a.nn b.txt` est accepté.
 
-**Remarque pour #1** : `cli.py` vérifie seulement que les fichiers existent. Le contenu (réseau corrompu, FEN invalide) sera vérifié par `load_network()` (qui lève déjà `ValueError`) et par l'encodeur FEN ; le pipeline devra transformer ces `ValueError` en `exit_error`.
+`cli.py` vérifie seulement que les fichiers existent et sont lisibles. Le **contenu** (réseau corrompu, FEN invalide, label manquant) est vérifié ensuite par le pipeline.
 
-## `analyzer/main.py` — ce qu'il reste à brancher (issue #1)
-
-Esquisse du futur pipeline, avec les briques **déjà disponibles** :
+## `analyzer/main.py` — le point d'entrée
 
 ```python
-import numpy as np
-from analyzer.cli import parse_args
-from analyzer.utils import exit_error
-from analyzer.fen_encoder import encode_fens, encode_labels, read_chess_file
-from mytorch.serialization import load_network, save_network
-
-args = parse_args()
+args = parse_args(argv)          # erreurs d'arguments → code 84 (cli.py)
 try:
-    model = load_network(args.loadfile)                    # ✅ disponible
-    fens, labels = read_chess_file(args.chessfile, require_label=(args.mode == "train"))  # ✅
-    X = encode_fens(fens)                                  # ✅
-    if args.mode == "predict":
-        for label in model.predict(X):                     # ✅ disponible
-            print(label)
-    else:
-        y = encode_labels(labels, model.classes)           # ✅
-        if model.seed is not None:
-            np.random.seed(model.seed)                     # reproductibilité
-        model.fit(X, y, **model.training_config)           # ✅ disponible
-        save_network(model, args.savefile or args.loadfile)  # ✅ disponible, écriture atomique
-except ValueError as exc:
-    exit_error(str(exc))
+    run(args)                    # pipeline.py
+except (ValueError, OSError):    # réseau corrompu, FEN invalide, label manquant, SAVEFILE impossible à écrire…
+    exit_error(message)          # stderr + code 84
+except MemoryError:
+    exit_error("Not enough memory …")
+return 0
 ```
 
-Points d'attention pour #1 :
-- en `--predict`, **rien d'autre** que les prédictions sur stdout (les logs de `fit(verbose=True)` vont déjà sur stderr) ;
-- `--train` doit refuser (code 84) une ligne sans label ;
-- les labels du fichier doivent être adaptés aux classes du réseau chargé (ex. `Checkmate White` → `Checkmate` pour un réseau intermédiaire, `Check` pour un réseau basique) ;
-- protéger l'import de `mytorch` comme dans le générateur, pour sortir en 84 si NumPy manque.
+- Toutes les erreurs de la librairie et de l'encodeur sont des `ValueError` aux messages précis : `main.py` n'a qu'un seul endroit où les transformer en code 84.
+- L'import du pipeline est protégé : si NumPy n'est pas installé, le programme affiche `Error: Cannot load the mytorch library: …` et sort avec 84 au lieu de planter.
+
+## `analyzer/pipeline.py` — les deux modes
+
+### `--predict`
+
+```
+./my_torch_analyzer --predict LOADFILE CHESSFILE
+```
+
+1. **Chargement** du réseau (`load_network`) et **vérification** qu'il attend bien les 773 features de l'encodeur (sinon erreur claire : `Network 'x.nn' expects 789 input features, but the FEN encoder produces 773.`).
+2. **Lecture** de `CHESSFILE` (`read_chess_file(require_label=False)`) : les lignes vides sont ignorées, un label après la FEN est **accepté et ignoré**, une FEN invalide arrête tout avec son numéro de ligne (`chess.txt:12: …`).
+3. **Prédiction par paquets de 1024 positions** (`PREDICT_CHUNK`) : on n'encode jamais tout le fichier d'un coup, la mémoire reste faible même avec des centaines de milliers de positions.
+4. **Sortie** : une prédiction par ligne sur **stdout**, dans l'ordre du fichier, **et rien d'autre** (ni sur stdout, ni sur stderr). Les prédictions sont les classes du réseau chargé : `Check` / `Nothing` pour un réseau basique, `Checkmate Black` / `Check White` / `Nothing`… pour un réseau complet.
+
+```
+$ ./my_torch_analyzer --predict my_torch_network_full.nn chessboards.txt
+Checkmate Black
+Nothing
+Check White
+```
+
+### `--train`
+
+```
+./my_torch_analyzer --train [--save SAVEFILE] LOADFILE CHESSFILE
+```
+
+1. **Chargement** et vérification de la taille d'entrée, comme en prédiction.
+2. **Lecture** avec `require_label=True` : chaque ligne **doit** avoir un label connu, sinon code 84 (`Missing expected output after FEN …` / `Unknown label 'Draw' …`).
+3. **Encodage** : `encode_fens` pour les positions, `encode_labels` pour les labels, **adaptés aux classes du réseau** : sur un réseau intermédiaire, `Checkmate White` devient `Checkmate` ; sur un réseau basique, `Check`. On peut donc entraîner les trois niveaux de réseau avec les mêmes fichiers du dataset.
+4. **Entraînement** : `np.random.seed(model.seed)` puis `model.fit(X, y, **model.training_config)`. Les réglages (époques, batch, validation, patience) sont ceux du `.conf` dont vient le réseau, et la graine rend l'entraînement **reproductible**. Une ligne par époque est affichée sur **stderr**.
+5. **Sauvegarde** dans `SAVEFILE` si `--save` est donné, sinon **à la place de `LOADFILE`**. L'écriture est atomique : si elle échoue (dossier inexistant…), `LOADFILE` reste intact. Les métadonnées du réseau sont conservées et complétées (`input_size`, `trained_on` = nombre de positions).
+6. **Résumé** sur stdout (le sujet n'impose rien en mode entraînement) :
+
+```
+$ ./my_torch_analyzer --train --save trained.nn medium_network_1.nn train.txt
+Trained on 1100 positions (8 epochs) - best epoch 3: val_loss 1.2276, val_acc 0.3879
+Network saved to trained.nn
+```
+
+**Mémoire** : en entraînement, tout `CHESSFILE` est encodé d'un coup (`fit` a besoin de toutes les données pour mélanger et découper). Chaque position coûte 773 × 4 octets ≈ 3 Ko : 100 000 positions ≈ 300 Mo, le dataset complet (723 000 positions) ≈ 2,2 Go. Pour de très gros entraînements, passer par un script qui utilise directement la librairie.
+
+### Fonctions utiles hors de l'exécutable
+
+| Fonction | Rôle |
+| :--- | :--- |
+| `load_compatible_network(path)` | `load_network` + vérification de la taille d'entrée |
+| `network_input_size(model)` | Nombre de features attendu par la première couche (`Normalization` ou `Linear`) |
+| `predict(model, fens, out)` | Écrit les prédictions par paquets sur un flux |
+| `run_predict(args)` / `run_train(args)` / `run(args)` | Les deux modes, à partir d'un `AnalyzerArgs` |
+
+### Exemple complet
+
+```bash
+make
+./my_torch_generator configs/medium_network.conf 1                       # réseau vierge
+./my_torch_analyzer --train --save trained.nn medium_network_1.nn train.txt
+./my_torch_analyzer --predict trained.nn positions.txt > predictions.txt
+```
 
 ## Le `Makefile`
 
