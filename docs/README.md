@@ -18,6 +18,7 @@ Cette documentation explique **chaque élément du code** : ce qu'il fait, pourq
 | Préparer la soutenance : questions probables, conformité au sujet, limites connues | [08 — Soutenance](08-soutenance.md) |
 | **Utiliser la librairie** : exemples prêts à copier, recettes, erreurs fréquentes, aide-mémoire | [09 — Guide d'utilisation](09-guide-utilisation.md) |
 | **Régler les hyperparamètres** : rôle, valeurs possibles, valeurs retenues et justification, méthode de réglage | [10 — Hyperparamètres](10-hyperparametres.md) |
+| **Suivre la progression** : chaque entraînement, ses résultats et ce qu'on en a appris | [11 — Journal des expériences](11-journal-des-experiences.md) |
 | Comprendre l'encodage des positions FEN | [Encodage FEN](fen_encoder.MD) |
 
 ## Carte de la librairie

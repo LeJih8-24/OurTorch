@@ -9,7 +9,7 @@
 .venv/bin/python3 -m unittest discover -s tests -v  # sans pytest
 ```
 
-Les tests sont écrits avec `unittest` (bibliothèque standard) et se lancent aussi avec `pytest`. 172 tests au total, environ 4 secondes.
+Les tests sont écrits avec `unittest` (bibliothèque standard) et se lancent aussi avec `pytest`. 196 tests au total, environ 10 secondes.
 
 ## Ce que couvre chaque fichier
 
@@ -21,11 +21,13 @@ Les tests sont écrits avec `unittest` (bibliothèque standard) et se lancent au
 | `test_layers.py` | 18 | Gradient check de `Linear` et de chaque activation ; valeurs connues ; stabilité de Sigmoid / Softmax ; Dropout (taux, mise à l'échelle, masque réutilisé au backward, identité en inférence, MC Dropout, reproductibilité) |
 | `test_losses.py` | 9 | Valeurs de référence (ex. loss = $\log 5$ pour 5 classes équiprobables), logits extrêmes, gradient check des deux losses |
 | `test_optimizers.py` | 9 | Formules exactes d'un pas, convergence sur une fonction quadratique, effet du weight decay, premier pas d'Adam ≈ `lr`, configs invalides |
+| `test_train_networks.py` | 3 | Script d'entraînement des réseaux pré-entraînés : découpage stratifié disjoint et reproductible, encodage `uint8` identique à l'encodage `float32`, exécution complète sur un petit échantillon |
 | `test_xor.py` | 9 | **Test d'acceptation de #4** : XOR résolu (100 %, loss < 0.02) avec Adam et SGD ; validation ; early stopping qui restaure les meilleurs poids ; reproductibilité ; régression MSE |
 | `test_normalization.py` | 14 | Standardisation, features constantes, gradient check, `state_dict`, adaptation sur la partie entraînement uniquement, démonstration sur données mal échelonnées |
 | `test_config.py` | 12 | Valeurs par défaut, ~30 configurations invalides, message d'erreur précis, graine, aller-retour `get_config` → `build_from_config`, configs fournies valides |
 | `test_serialization.py` | 12 | Aller-retour save/load avec prédictions **identiques**, réseau vierge, écrasement, permissions, métadonnées, fichiers corrompus / tronqués / étrangers, pickle refusé |
 | `test_generator.py` | 7 | Le générateur lancé **comme le vrai exécutable** : fichiers créés, graines, noms répétés, `--help`, codes 84 sans aucun fichier écrit |
+| `test_evaluate.py` | 3 | `scripts/evaluate.py` : accuracy, précision / rappel par classe, matrice de confusion, script lancé en vrai, code 84 si les prédictions ne correspondent pas aux positions |
 | `test_model_selection.py` | 13 | Découpage en blocs (chaque exemple validé une fois, tailles équilibrées, proportions en stratifié, reproductibilité), validation croisée (scores, réglages remplacés, réseau et normalisation neufs à chaque bloc, logs sur stderr, erreurs) |
 | `test_grid_search.py` | 21 | Produit cartésien de la grille, chemins dans la config (`*`, listes complètes), choix du bon learning rate en découpage unique / validation explicite / validation croisée, classement par accuracy, même découpage pour toutes les combinaisons, reproductibilité, `refit`, combinaison invalide refusée avant tout entraînement, logs sur stderr |
 

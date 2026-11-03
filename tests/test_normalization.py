@@ -47,6 +47,18 @@ class TestNormalization(unittest.TestCase):
         self.assertTrue(np.all(np.isfinite(out)))
         np.testing.assert_allclose(out[:, 3], 0.0)
 
+    def test_chunked_adapt_matches_numpy_and_accepts_uint8(self):
+        layer = Normalization(4)
+        layer.ADAPT_CHUNK = 7  # force many chunks
+        layer.adapt(self.X)
+        np.testing.assert_allclose(layer.mean, self.X.mean(axis=0, keepdims=True), rtol=1e-5)
+        std = self.X.std(axis=0, keepdims=True)
+        np.testing.assert_allclose(layer.std[:, :3], std[:, :3], rtol=1e-4)
+        binary = (np.random.default_rng(2).random((100, 4)) > 0.7).astype(np.uint8)
+        layer.adapt(binary)
+        np.testing.assert_allclose(layer.mean, binary.mean(axis=0, keepdims=True), rtol=1e-6)
+        np.testing.assert_allclose(layer.forward(binary).mean(axis=0), 0.0, atol=1e-5)
+
     def test_not_trainable_and_config(self):
         layer = Normalization(4)
         self.assertEqual(layer.parameters(), [])
